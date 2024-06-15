@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 from wordcloud import WordCloud
 from PIL import Image
 import nltk
@@ -10,6 +8,10 @@ from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import CountVectorizer
 from streamlit_navigation_bar import st_navbar
 import altair as alt
+import datetime
+import joblib  # pastikan joblib diimpor dari modul yang benar
+import os
+import time
 
 # Setup
 nltk.download("stopwords")
@@ -200,8 +202,62 @@ if page == "OGPD":
 
 elif page == "Explorer":
     st.title("Explorer")
-    social_media = st.selectbox("Select Platform", ["Facebook", "Instagram", "X"])
-    st.write(f"Exploring {social_media} data.")
+    search_keyword = st.text_input("Masukkan kata kunci pencarian:", value="judi")
+    today = datetime.date.today()
+    yesterday = today - datetime.timedelta(days=1)
+    start_date = st.date_input("Tanggal mulai:", value=yesterday)
+    end_date = st.date_input("Tanggal akhir:", value=today)
+
+    if st.button("Crawl dan Prediksi"):
+        # Format search keyword
+        search_keyword_formatted = (
+            f"{search_keyword} lang:id since:{start_date} until:{end_date}"
+        )
+        filename = "x_explorer.csv"
+        limit = 5000
+        x_auth_token = '0cbdc3f18f9ab2ad2bb8e5dc6bf36041126203c9'
+
+        # Cek apakah file sudah ada, jika ya, tambahkan timestamp pada nama file
+        if os.path.isfile(f"tweets-data/{filename}"):
+            timestamp = int(time.time())
+            filename = f"x_explorer_{timestamp}.csv"
+
+        # Crawling data
+        os.system(
+            f'npx --yes tweet-harvest@latest -o "{filename}" -s "{search_keyword_formatted}" -l {limit} --token "{x_auth_token}"'
+        )
+
+        # Load data
+        file_path = f"tweets-data/{filename}"
+        try:
+            df = pd.read_csv(file_path, encoding='latin1')
+        except pd.errors.EmptyDataError:
+            st.error("Unggahan tidak ditemukan.")
+            st.stop()
+
+        # Prediksi menggunakan model SVM
+        model_path = "svm_model.pkl"  # Ganti dengan path model Anda
+        model = joblib.load(model_path)
+        X = df["full_text"]  # Menggunakan kolom 'full_text' untuk prediksi
+        predictions = model.predict(X)
+
+        # Simpan hasil prediksi ke CSV baru
+        df["label"] = predictions
+        df = df.rename(columns={"full_text": "Text", "tweet_url": "URL", "label": "Label"})
+
+        # Tambahkan nomor urut
+        df.insert(0, 'No', range(1, 1 + len(df)))
+
+        # Mem-wrap text di kolom "Text"
+        df["Text"] = df["Text"].apply(lambda x: '\n'.join(x[i:i+50] for i in range(0, len(x), 50)))
+
+        output_filename = f"predicted_{filename}"
+        df[["No", "Text", "URL", "Label"]].to_csv(output_filename, index=False)
+
+        st.success(f"Crawling dan prediksi selesai! Hasil disimpan di {output_filename}")
+        st.table(df[["No", "Text", "URL", "Label"]])  # Menggunakan st.table untuk menghilangkan index bawaan
+
+
 
 elif page == "About":
     st.title("About")
