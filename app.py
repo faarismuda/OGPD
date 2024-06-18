@@ -1,19 +1,23 @@
-import streamlit as st
-import pandas as pd
+from datetime import date, datetime, timedelta
+import os
 import re
+
+import altair as alt
+import joblib
 import numpy as np
-from wordcloud import WordCloud
+import pandas as pd
 from PIL import Image
+from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
+from sklearn.feature_extraction.text import CountVectorizer
+from apify_client import ApifyClient
+from wordcloud import WordCloud
+
+import streamlit as st
+from streamlit_navigation_bar import st_navbar
+
 import nltk
 from nltk.corpus import stopwords
-from sklearn.feature_extraction.text import CountVectorizer
-from streamlit_navigation_bar import st_navbar
-import altair as alt
-import datetime
-import joblib  # pastikan joblib diimpor dari modul yang benar
-import os
-import time
-from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
+
 from dotenv import load_dotenv
 
 # Setup
@@ -56,6 +60,11 @@ def get_top_ngrams(corpus, ngram_range=(1, 1), n=None):
     words_freq = sorted(words_freq, key=lambda x: x[1], reverse=True)
     return words_freq[:n]
 
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+today = datetime.today()
+yesterday = today - timedelta(days=1)
+tomorrow = today + timedelta(days=1)
 
 # Load Data
 data = load_data()
@@ -224,8 +233,128 @@ elif page == "Explorer":
 
     if explorer_option == "Facebook":
         st.header("Facebook Explorer")
+
     elif explorer_option == "Instagram":
         st.header("Instagram Explorer")
+
+        APIFY_TOKEN = os.getenv("APIFY_TOKEN")
+
+        # Initialize the ApifyClient with your token
+        client = ApifyClient(APIFY_TOKEN)
+
+        # Add new input for choice
+        choice = st.selectbox("Pilih jenis crawling:", options=["Unggahan Pribadi", "Unggahan dengan Hashtag", "Komentar dalam Unggahan"])
+        
+        if not os.path.exists('instagram-data'):
+            os.makedirs('instagram-data')
+
+        if choice == "Unggahan Pribadi":
+            col1, col2 = st.columns(2)
+            with col1:
+                username = st.text_input(
+                    "Masukkan username Instagram:", value="rpl_upi"
+                )
+            with col2:
+                resultsLimit = st.number_input(
+                    "Masukkan batas maksimum unggahan:", min_value=1, value=20
+                )
+
+            if st.button("Crawl Instagram"):
+                # Prepare the Actor input for Instagram account
+                run_input_account = {
+                    "username": [username],
+                    "resultsLimit": resultsLimit,
+                }
+                
+                with st.spinner("Crawling data..."):
+                # Run the Actor and wait for it to finish
+                    run_account = client.actor("nH2AHrwxeTRJoN5hX").call(
+                        run_input=run_input_account
+                    )
+ 
+
+                # Fetch and print Actor results from the run's dataset (if there are any)
+                data = []
+                for item in client.dataset(
+                    run_account["defaultDatasetId"]
+                ).iterate_items():
+                    data.append(item)
+                df = pd.DataFrame(data)
+
+                filename = f"instagram-data/ie_unggahan_{username}_{timestamp}.csv"
+                df.to_csv(filename, index=False)
+
+        elif choice == "Unggahan dengan Hashtag":
+            # Add new input for hashtag
+            hashtags = st.text_input("Masukkan hashtag:", value="judi")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                resultsLimit = st.number_input(
+                    "Masukkan batas maksimum unggahan:", min_value=1, value=20
+                )
+            with col2:
+                onlyPostsNewerThan = st.date_input(
+                    "Hanya unggahan setelah tanggal:", value=yesterday
+                )
+
+            if st.button("Crawl Instagram"):
+                # Prepare the Actor input for hashtag
+                run_input_hashtag = {
+                    "hashtags": [hashtags],
+                    "resultsLimit": resultsLimit,
+                    "onlyPostsNewerThan": onlyPostsNewerThan.strftime("%Y-%m-%d"),
+                }
+                
+                with st.spinner("Crawling data..."):
+                    # Run the Actor and wait for it to finish
+                    run_hashtag = client.actor("reGe1ST3OBgYZSsZJ").call(
+                        run_input=run_input_hashtag
+                    )
+
+
+                # Fetch and print Actor results from the run's dataset (if there are any)
+                data = []
+                for item in client.dataset(
+                    run_hashtag["defaultDatasetId"]
+                ).iterate_items():
+                    data.append(item)
+                df = pd.DataFrame(data)
+
+                filename = f"instagram-data/ie_unggahan_{hashtags}_{timestamp}.csv"
+                df.to_csv(filename, index=False)
+                
+        elif choice == "Komentar dalam Unggahan":
+            # Add new input for hashtag
+            directUrls = st.text_input("Masukkan link unggahan Instagram:", value="https://www.instagram.com/p/Bi-hISIghYe/")
+            resultsLimit = st.number_input(
+                "Masukkan batas maksimum komentar:", min_value=1, value=20
+            )
+
+            if st.button("Crawl Instagram"):
+                # Prepare the Actor input for hashtag
+                run_input_post = {
+                    "directUrls": [directUrls],
+                    "resultsLimit": resultsLimit,
+                }
+
+                with st.spinner("Crawling data..."):
+                    # Run the Actor and wait for it to finish
+                    run_comment = client.actor("SbK00X0JYCPblD2wp").call(
+                        run_input=run_input_post
+                    )
+
+                # Fetch and print Actor results from the run's dataset (if there are any)
+                data = []
+                for item in client.dataset(
+                    run_comment["defaultDatasetId"]
+                ).iterate_items():
+                    data.append(item)
+                df = pd.DataFrame(data)
+
+                filename = f"instagram-data/ie_komentar_{timestamp}.csv"
+                df.to_csv(filename, index=False)
+
     elif explorer_option == "X":
         st.header("X Explorer")
         st.write(
@@ -240,9 +369,7 @@ elif page == "Explorer":
             limit = st.number_input(
                 "Masukkan batas maksimum unggahan:", min_value=20, value=200
             )
-        today = datetime.date.today()
-        yesterday = today - datetime.timedelta(days=1)
-        tomorrow = today + datetime.timedelta(days=1)
+
         col3, col4 = st.columns(2)
         with col3:
             start_date = st.date_input("Tanggal mulai:", value=today)
@@ -264,11 +391,9 @@ elif page == "Explorer":
                 search_keyword_formatted = (
                     f"{search_keyword} lang:id since:{start_date} until:{end_date}"
                 )
-                
+
                 x_auth_token = os.getenv("X_AUTH_TOKEN")
 
-                timestamp = int(time.time())
-                
                 filename = f"x_explorer_{timestamp}.csv"
 
                 # Crawling data
@@ -292,53 +417,23 @@ elif page == "Explorer":
                 stopwords = stopwords_df.iloc[:, 0].tolist()
 
                 def cleaning(text):
-                    # Case Folding
                     text = str(text).lower()
-
-                    # Menghapus URL
                     text = re.sub(r"(?:\@|http?\://|https?\://|www)\S+", "", text)
-
-                    # Menghapus Tag User
                     text = re.sub(r"@[^\s]+", "", text)
-
-                    # Menghapus Hashtag
                     text = re.sub(r"#[^\s]+", "", text)
-
-                    # Mengganti Tag HTML dengan Spasi
                     text = re.sub(r"<.*?>", " ", text)
-
-                    # Mengganti Tanda Baca/Karakter Khusus dengan Spasi
                     text = re.sub(r"[^\w\s]", " ", text)
-
-                    # Mengganti Karakter non-ASCII atau Karakter Unicode dengan Spasi
                     text = re.sub(r"[^\x00-\x7F]+", " ", text)
-
-                    # Menghapus Angka
                     text = re.sub(r"\d+", "", text)
-
-                    # Menghapus Kata "amp"
                     text = re.sub(r"\bamp\b", "", text)
-
-                    # Mengganti Line Baru dengan Spasi
                     text = re.sub(r"\n", " ", text)
-
-                    # Menghapus Single Char
                     text = re.sub(r"\b[a-zA-Z]\b", " ", text)
-
-                    # Mengganti semua urutan karakter yang berulang lebih dari dua kali dalam string text menjadi dua pengulangan karakter. Haiii > Haii
                     text = re.sub(r"(.)\1+", r"\1\1", text)
-
-                    # Menghapus kata-kata yang berulang. Halo halo apa kabar? > Halo apa kabar?
                     text = re.sub(
                         r"\b(\w+)(?:\W\1\b)+", r"\1", text, flags=re.IGNORECASE
                     )
-
-                    # Menghapus Spasi Ekstra
                     text = re.sub(r"\s+", " ", text)
-
-                    # Menghapus Whitespace di Awal dan Akhir Teks
                     text = text.strip()
-
                     return text
 
                 def normalize_slang(text):
