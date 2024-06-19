@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import os
 import re
+import subprocess
 
 import altair as alt
 import joblib
@@ -235,6 +236,42 @@ elif page == "Explorer":
 
     explorer_option = st.selectbox("Pilih Explorer:", ("Facebook", "Instagram", "X"))
 
+    slang_df = pd.read_csv("Kata_Baku_Final.csv")
+    slang_dict = dict(zip(slang_df.iloc[:, 0], slang_df.iloc[:, 1]))
+
+    stopwords_df = pd.read_csv("Stopwords.csv")
+    stopwords = stopwords_df.iloc[:, 0].tolist()
+
+    def cleaning(text):
+        text = str(text).lower()
+        text = re.sub(r"(?:\@|http?\://|https?\://|www)\S+", "", text)
+        text = re.sub(r"@[^\s]+", "", text)
+        text = re.sub(r"#[^\s]+", "", text)
+        text = re.sub(r"<.*?>", " ", text)
+        text = re.sub(r"[^\w\s]", " ", text)
+        text = re.sub(r"[^\x00-\x7F]+", " ", text)
+        text = re.sub(r"\d+", "", text)
+        text = re.sub(r"\bamp\b", "", text)
+        text = re.sub(r"\n", " ", text)
+        text = re.sub(r"\b[a-zA-Z]\b", " ", text)
+        text = re.sub(r"(.)\1+", r"\1\1", text)
+        text = re.sub(r"\b(\w+)(?:\W\1\b)+", r"\1", text, flags=re.IGNORECASE)
+        text = re.sub(r"\s+", " ", text)
+        text = text.strip()
+        return text
+
+    def normalize_slang(text):
+        return " ".join(slang_dict.get(word, word) for word in text.split())
+
+    def remove_stopwords(text):
+        return " ".join(word for word in text.split() if word not in stopwords)
+
+    factory = StemmerFactory()
+    stemmer = factory.create_stemmer()
+
+    def stemming(text):
+        return " ".join(stemmer.stem(word) for word in text.split())
+
     if explorer_option == "Facebook":
         st.header("Facebook Explorer")
 
@@ -251,8 +288,9 @@ elif page == "Explorer":
             ],
         )
 
-        if not os.path.exists("facebook-data"):
-            os.makedirs("facebook-data")
+        directory = "facebook-data"
+        if not os.path.exists(directory):
+            os.makedirs(directory)
 
         if choice == "Unggahan Pribadi atau Halaman":
             col1, col2 = st.columns(2)
@@ -268,11 +306,11 @@ elif page == "Explorer":
             col3, col4 = st.columns(2)
             with col3:
                 start_date = st.date_input(
-                    "Hanya unggahan setelah tanggal:", value=yesterday
+                    "Hanya unggahan sejak tanggal:", value=yesterday
                 )
             with col4:
                 end_date = st.date_input(
-                    "Hanya unggahan sebelum tanggal:", value=tomorrow
+                    "Hanya unggahan sampai tanggal:", value=tomorrow
                 )
 
             if st.button("Crawl dan Klasifikasi"):
@@ -319,7 +357,7 @@ elif page == "Explorer":
                 )
             with col4:
                 onlyPostsNewerThan = st.date_input(
-                    "Hanya unggahan setelah tanggal:", value=yesterday
+                    "Hanya unggahan sejak tanggal:", value=yesterday
                 )
 
             if st.button("Crawl dan Klasifikasi"):
@@ -440,8 +478,9 @@ elif page == "Explorer":
             ],
         )
 
-        if not os.path.exists("instagram-data"):
-            os.makedirs("instagram-data")
+        directory = "instagram-data"
+        if not os.path.exists(directory):
+            os.makedirs(directory)
 
         if choice == "Unggahan Pribadi":
             col1, col2 = st.columns(2)
@@ -454,29 +493,215 @@ elif page == "Explorer":
                     "Masukkan batas maksimum unggahan:", min_value=1, value=20
                 )
 
-            if st.button("Crawl dan Klasifikasi"):
-                # Prepare the Actor input for Instagram account
-                run_input_account = {
-                    "username": [username],
-                    "resultsLimit": resultsLimit,
-                }
+            if not username:
+                st.error("Username Instagram tidak boleh kosong.")
+            elif resultsLimit is None:
+                st.error("Batas maksimum unggahan tidak boleh kosong.")
+            else:
+                if st.button("Crawl dan Klasifikasi"):
+                    # Prepare the Actor input for Instagram account
+                    run_input_account = {
+                        "username": [username],
+                        "resultsLimit": resultsLimit,
+                    }
 
-                with st.spinner("Crawling data..."):
-                    # Run the Actor and wait for it to finish
-                    run_account = client.actor("nH2AHrwxeTRJoN5hX").call(
-                        run_input=run_input_account
+                    with st.spinner("Crawling data..."):
+                        # Run the Actor and wait for it to finish
+                        run_account = client.actor("nH2AHrwxeTRJoN5hX").call(
+                            run_input=run_input_account
+                        )
+
+                    # Fetch and print Actor results from the run's dataset (if there are any)
+                    data = []
+                    for item in client.dataset(
+                        run_account["defaultDatasetId"]
+                    ).iterate_items():
+                        data.append(item)
+                    df = pd.DataFrame(data)
+
+                    filename = f"instagram-data/ie_unggahan_{username}_{timestamp}.csv"
+                    df.to_csv(filename, index=False)
+
+                    # Load data
+                    file_path = filename
+                    try:
+                        df = pd.read_csv(file_path, encoding="latin1")
+                    except pd.errors.EmptyDataError:
+                        st.error("Unggahan tidak ditemukan.")
+                        st.stop()
+
+                    df["Processed"] = df["caption"].apply(cleaning)
+                    df["Processed"] = df["Processed"].apply(normalize_slang)
+                    df["Processed"] = df["Processed"].apply(remove_stopwords)
+                    df["Processed"] = df["Processed"].apply(stemming)
+
+                    df.to_csv(file_path, index=False)
+
+                    # Klasifikasi menggunakan model SVM
+                    model_path = "svm_model.pkl"  # Ganti dengan path model Anda
+                    try:
+                        model = joblib.load(model_path)
+                    except FileNotFoundError:
+                        st.error("Model tidak ditemukan.")
+                        st.stop()
+
+                    X = df[
+                        "Processed"
+                    ]  # Menggunakan kolom 'processed' untuk klasifikasi
+                    predictions = model.predict(X)
+
+                    # Simpan hasil klasifikasi ke CSV baru
+                    df["label"] = predictions
+                    df = df.rename(
+                        columns={
+                            "caption": "Text",
+                            "url": "URL",
+                            "label": "Label",
+                        }
                     )
 
-                # Fetch and print Actor results from the run's dataset (if there are any)
-                data = []
-                for item in client.dataset(
-                    run_account["defaultDatasetId"]
-                ).iterate_items():
-                    data.append(item)
-                df = pd.DataFrame(data)
+                    # Mengatur ulang index dimulai dari 1
+                    df.index = np.arange(1, len(df) + 1)
 
-                filename = f"instagram-data/ie_unggahan_{username}_{timestamp}.csv"
-                df.to_csv(filename, index=False)
+                    output_filename = f"{filename.replace('.csv', '')}_predicted"
+                    df[["Text", "URL", "Label"]].to_csv(
+                        f"{output_filename}.csv", index=False
+                    )
+
+                    st.success("Crawling dan klasifikasi selesai!")
+                    st.dataframe(df[["Text", "URL", "Label"]])
+
+                    # Pie Chart untuk Distribusi Label
+                    st.subheader("Distribusi Label")
+                    label_counts = df["Label"].value_counts().reset_index()
+                    label_counts.columns = ["Label", "Count"]
+
+                    # Menghitung persentase untuk setiap label dan membatasi desimalnya
+                    total_count = label_counts["Count"].sum()
+                    label_counts["Percentage"] = (
+                        (label_counts["Count"] / total_count) * 100
+                    ).round(2)
+
+                    # Membuat pie chart dengan Altair untuk distribusi label
+                    pie_chart = (
+                        alt.Chart(label_counts)
+                        .mark_arc()
+                        .encode(
+                            theta=alt.Theta(field="Percentage", type="quantitative"),
+                            color=alt.Color(field="Label", type="nominal"),
+                            tooltip=[
+                                "Label",
+                                "Count",
+                                alt.Tooltip(
+                                    field="Percentage",
+                                    type="quantitative",
+                                    format=".2f",
+                                ),
+                            ],
+                        )
+                    )
+
+                    st.altair_chart(pie_chart, use_container_width=True)
+
+                    # Frekuensi of Words
+                    st.subheader("Frekuensi Kata")
+                    positive_texts = df[df["Label"] == "Positif"]["Processed"]
+                    negative_texts = df[df["Label"] == "Negatif"]["Processed"]
+                    top_positive_words = get_top_ngrams(
+                        positive_texts, ngram_range=(1, 1), n=30
+                    )
+                    top_negative_words = get_top_ngrams(
+                        negative_texts, ngram_range=(1, 1), n=30
+                    )
+                    positive_df = pd.DataFrame(
+                        top_positive_words, columns=["Kata", "Frekuensi"]
+                    ).sort_values(by="Frekuensi", ascending=False)
+                    negative_df = pd.DataFrame(
+                        top_negative_words, columns=["Kata", "Frekuensi"]
+                    ).sort_values(by="Frekuensi", ascending=False)
+
+                    # Create bar charts with Altair
+                    positive_chart = (
+                        alt.Chart(positive_df)
+                        .mark_bar()
+                        .encode(x=alt.X("Kata", sort=None), y="Frekuensi")
+                        .properties(title="Kata-Kata Teratas yang Dilabeli Positif")
+                    )
+
+                    negative_chart = (
+                        alt.Chart(negative_df)
+                        .mark_bar()
+                        .encode(x=alt.X("Kata", sort=None), y="Frekuensi")
+                        .properties(title="Kata-Kata Teratas yang Dilabeli Negatif")
+                    )
+
+                    st.altair_chart(positive_chart, use_container_width=True)
+                    st.altair_chart(negative_chart, use_container_width=True)
+
+                    # Bigram Analysis
+                    st.subheader("Frekuensi Bigram")
+                    top_positive_bigrams = get_top_ngrams(
+                        positive_texts, ngram_range=(2, 2), n=30
+                    )
+                    top_negative_bigrams = get_top_ngrams(
+                        negative_texts, ngram_range=(2, 2), n=30
+                    )
+                    positive_bigram_df = pd.DataFrame(
+                        top_positive_bigrams, columns=["Bigram", "Frekuensi"]
+                    ).sort_values(by="Frekuensi", ascending=False)
+                    negative_bigram_df = pd.DataFrame(
+                        top_negative_bigrams, columns=["Bigram", "Frekuensi"]
+                    ).sort_values(by="Frekuensi", ascending=False)
+
+                    # Create bigram bar charts with Altair
+                    positive_bigram_chart = (
+                        alt.Chart(positive_bigram_df)
+                        .mark_bar()
+                        .encode(x=alt.X("Bigram", sort=None), y="Frekuensi")
+                        .properties(title="Bigram-Bigram Teratas yang Dilabeli Positif")
+                    )
+
+                    negative_bigram_chart = (
+                        alt.Chart(negative_bigram_df)
+                        .mark_bar()
+                        .encode(x=alt.X("Bigram", sort=None), y="Frekuensi")
+                        .properties(title="Bigram-Bigram Teratas yang Dilabeli Negatif")
+                    )
+
+                    st.altair_chart(positive_bigram_chart, use_container_width=True)
+                    st.altair_chart(negative_bigram_chart, use_container_width=True)
+
+                    # Histogram
+                    st.subheader("Distribusi Panjang Karakter")
+                    df["Text Length"] = df["Processed"].apply(len)
+
+                    # Create histogram with Altair
+                    hist_chart = (
+                        alt.Chart(df)
+                        .transform_bin(
+                            "Panjang Karakter",
+                            field="Text Length",
+                            bin=alt.Bin(maxbins=50),
+                        )
+                        .transform_aggregate(
+                            Frekuensi="count()", groupby=["Panjang Karakter", "Label"]
+                        )
+                        .mark_bar()
+                        .encode(
+                            x="Panjang Karakter:Q", y="Frekuensi:Q", color="Label:N"
+                        )
+                        .properties(width=600, height=400, title="Histogram")
+                    )
+
+                    st.altair_chart(hist_chart, use_container_width=True)
+
+                    # Wordcloud
+                    st.subheader("Word Cloud")
+                    all_texts = df["Processed"]
+                    all_text = " ".join(all_texts.astype(str).tolist())
+                    circle_mask = np.array(Image.open("mask.png"))
+                    wordcloud = generate_wordcloud(all_text, circle_mask)
+                    st.image(wordcloud.to_array(), use_column_width=True)
 
         elif choice == "Unggahan dengan Hashtag":
             # Add new input for hashtag
@@ -489,330 +714,970 @@ elif page == "Explorer":
                 )
             with col2:
                 onlyPostsNewerThan = st.date_input(
-                    "Hanya unggahan setelah tanggal:", value=yesterday
+                    "Hanya unggahan sejak tanggal:", value=yesterday
                 )
 
-            if st.button("Crawl dan Klasifikasi"):
-                # Prepare the Actor input for hashtag
-                run_input_hashtag = {
-                    "hashtags": [hashtags],
-                    "resultsLimit": resultsLimit,
-                    "onlyPostsNewerThan": onlyPostsNewerThan.strftime("%Y-%m-%d"),
-                }
+            if not hashtags:
+                st.error("Hashtag tidak boleh kosong.")
+            elif resultsLimit is None:
+                st.error("Batas maksimum unggahan tidak boleh kosong.")
+            elif onlyPostsNewerThan is None:
+                st.error("Tanggal tidak boleh kosong.")
+            else:
+                if st.button("Crawl dan Klasifikasi"):
+                    # Prepare the Actor input for hashtag
+                    run_input_hashtag = {
+                        "hashtags": [hashtags],
+                        "resultsLimit": resultsLimit,
+                        "onlyPostsNewerThan": onlyPostsNewerThan.strftime("%Y-%m-%d"),
+                    }
 
-                with st.spinner("Crawling data..."):
-                    # Run the Actor and wait for it to finish
-                    run_hashtag = client.actor("reGe1ST3OBgYZSsZJ").call(
-                        run_input=run_input_hashtag
+                    with st.spinner("Crawling data..."):
+                        # Run the Actor and wait for it to finish
+                        run_hashtag = client.actor("reGe1ST3OBgYZSsZJ").call(
+                            run_input=run_input_hashtag
+                        )
+
+                    # Fetch and print Actor results from the run's dataset (if there are any)
+                    data = []
+                    for item in client.dataset(
+                        run_hashtag["defaultDatasetId"]
+                    ).iterate_items():
+                        data.append(item)
+                    df = pd.DataFrame(data)
+
+                    filename = f"instagram-data/ie_unggahan_{hashtags}_{timestamp}.csv"
+                    df.to_csv(filename, index=False)
+
+                    # Load data
+                    file_path = filename
+                    try:
+                        df = pd.read_csv(file_path, encoding="latin1")
+                    except pd.errors.EmptyDataError:
+                        st.error("Unggahan tidak ditemukan.")
+                        st.stop()
+
+                    df["Processed"] = df["caption"].apply(cleaning)
+                    df["Processed"] = df["Processed"].apply(normalize_slang)
+                    df["Processed"] = df["Processed"].apply(remove_stopwords)
+                    df["Processed"] = df["Processed"].apply(stemming)
+
+                    df.to_csv(file_path, index=False)
+
+                    # Klasifikasi menggunakan model SVM
+                    model_path = "svm_model.pkl"  # Ganti dengan path model Anda
+                    try:
+                        model = joblib.load(model_path)
+                    except FileNotFoundError:
+                        st.error("Model tidak ditemukan.")
+                        st.stop()
+
+                    X = df[
+                        "Processed"
+                    ]  # Menggunakan kolom 'processed' untuk klasifikasi
+                    predictions = model.predict(X)
+
+                    # Simpan hasil klasifikasi ke CSV baru
+                    df["label"] = predictions
+                    df = df.rename(
+                        columns={
+                            "caption": "Text",
+                            "url": "URL",
+                            "ownerUsername": "Username",
+                            "label": "Label",
+                        }
                     )
 
-                # Fetch and print Actor results from the run's dataset (if there are any)
-                data = []
-                for item in client.dataset(
-                    run_hashtag["defaultDatasetId"]
-                ).iterate_items():
-                    data.append(item)
-                df = pd.DataFrame(data)
+                    # Mengatur ulang index dimulai dari 1
+                    df.index = np.arange(1, len(df) + 1)
 
-                filename = f"instagram-data/ie_unggahan_{hashtags}_{timestamp}.csv"
-                df.to_csv(filename, index=False)
+                    output_filename = f"{filename.replace('.csv', '')}_predicted"
+                    df[["Text", "URL", "Username", "Label"]].to_csv(
+                        f"{output_filename}.csv", index=False
+                    )
+
+                    st.success("Crawling dan klasifikasi selesai!")
+                    st.dataframe(df[["Text", "URL", "Username", "Label"]])
+                    # Pie Chart untuk Distribusi Label
+                    st.subheader("Distribusi Label")
+                    label_counts = df["Label"].value_counts().reset_index()
+                    label_counts.columns = ["Label", "Count"]
+
+                    # Menghitung persentase untuk setiap label dan membatasi desimalnya
+                    total_count = label_counts["Count"].sum()
+                    label_counts["Percentage"] = (
+                        (label_counts["Count"] / total_count) * 100
+                    ).round(2)
+
+                    # Membuat pie chart dengan Altair untuk distribusi label
+                    pie_chart = (
+                        alt.Chart(label_counts)
+                        .mark_arc()
+                        .encode(
+                            theta=alt.Theta(field="Percentage", type="quantitative"),
+                            color=alt.Color(field="Label", type="nominal"),
+                            tooltip=[
+                                "Label",
+                                "Count",
+                                alt.Tooltip(
+                                    field="Percentage",
+                                    type="quantitative",
+                                    format=".2f",
+                                ),
+                            ],
+                        )
+                    )
+
+                    st.altair_chart(pie_chart, use_container_width=True)
+
+                    # Frekuensi of Words
+                    st.subheader("Frekuensi Kata")
+                    positive_texts = df[df["Label"] == "Positif"]["Processed"]
+                    negative_texts = df[df["Label"] == "Negatif"]["Processed"]
+                    top_positive_words = get_top_ngrams(
+                        positive_texts, ngram_range=(1, 1), n=30
+                    )
+                    top_negative_words = get_top_ngrams(
+                        negative_texts, ngram_range=(1, 1), n=30
+                    )
+                    positive_df = pd.DataFrame(
+                        top_positive_words, columns=["Kata", "Frekuensi"]
+                    ).sort_values(by="Frekuensi", ascending=False)
+                    negative_df = pd.DataFrame(
+                        top_negative_words, columns=["Kata", "Frekuensi"]
+                    ).sort_values(by="Frekuensi", ascending=False)
+
+                    # Create bar charts with Altair
+                    positive_chart = (
+                        alt.Chart(positive_df)
+                        .mark_bar()
+                        .encode(x=alt.X("Kata", sort=None), y="Frekuensi")
+                        .properties(title="Kata-Kata Teratas yang Dilabeli Positif")
+                    )
+
+                    negative_chart = (
+                        alt.Chart(negative_df)
+                        .mark_bar()
+                        .encode(x=alt.X("Kata", sort=None), y="Frekuensi")
+                        .properties(title="Kata-Kata Teratas yang Dilabeli Negatif")
+                    )
+
+                    st.altair_chart(positive_chart, use_container_width=True)
+                    st.altair_chart(negative_chart, use_container_width=True)
+
+                    # Bigram Analysis
+                    st.subheader("Frekuensi Bigram")
+                    top_positive_bigrams = get_top_ngrams(
+                        positive_texts, ngram_range=(2, 2), n=30
+                    )
+                    top_negative_bigrams = get_top_ngrams(
+                        negative_texts, ngram_range=(2, 2), n=30
+                    )
+                    positive_bigram_df = pd.DataFrame(
+                        top_positive_bigrams, columns=["Bigram", "Frekuensi"]
+                    ).sort_values(by="Frekuensi", ascending=False)
+                    negative_bigram_df = pd.DataFrame(
+                        top_negative_bigrams, columns=["Bigram", "Frekuensi"]
+                    ).sort_values(by="Frekuensi", ascending=False)
+
+                    # Create bigram bar charts with Altair
+                    positive_bigram_chart = (
+                        alt.Chart(positive_bigram_df)
+                        .mark_bar()
+                        .encode(x=alt.X("Bigram", sort=None), y="Frekuensi")
+                        .properties(title="Bigram-Bigram Teratas yang Dilabeli Positif")
+                    )
+
+                    negative_bigram_chart = (
+                        alt.Chart(negative_bigram_df)
+                        .mark_bar()
+                        .encode(x=alt.X("Bigram", sort=None), y="Frekuensi")
+                        .properties(title="Bigram-Bigram Teratas yang Dilabeli Negatif")
+                    )
+
+                    st.altair_chart(positive_bigram_chart, use_container_width=True)
+                    st.altair_chart(negative_bigram_chart, use_container_width=True)
+
+                    # Histogram
+                    st.subheader("Distribusi Panjang Karakter")
+                    df["Text Length"] = df["Processed"].apply(len)
+
+                    # Create histogram with Altair
+                    hist_chart = (
+                        alt.Chart(df)
+                        .transform_bin(
+                            "Panjang Karakter",
+                            field="Text Length",
+                            bin=alt.Bin(maxbins=50),
+                        )
+                        .transform_aggregate(
+                            Frekuensi="count()", groupby=["Panjang Karakter", "Label"]
+                        )
+                        .mark_bar()
+                        .encode(
+                            x="Panjang Karakter:Q", y="Frekuensi:Q", color="Label:N"
+                        )
+                        .properties(width=600, height=400, title="Histogram")
+                    )
+
+                    st.altair_chart(hist_chart, use_container_width=True)
+
+                    # Wordcloud
+                    st.subheader("Word Cloud")
+                    all_texts = df["Processed"]
+                    all_text = " ".join(all_texts.astype(str).tolist())
+                    circle_mask = np.array(Image.open("mask.png"))
+                    wordcloud = generate_wordcloud(all_text, circle_mask)
+                    st.image(wordcloud.to_array(), use_column_width=True)
 
         elif choice == "Komentar dalam Unggahan":
             # Add new input for hashtag
             directUrls = st.text_input(
                 "Masukkan link unggahan Instagram:",
-                value="https://www.instagram.com/p/Bi-hISIghYe/",
+                value="https://www.instagram.com/p/C8Y52QPPmib/",
             )
+            directUrls = directUrls.split("?")[0]
             resultsLimit = st.number_input(
                 "Masukkan batas maksimum komentar:", min_value=1, value=20
             )
 
-            if st.button("Crawl dan Klasifikasi"):
-                # Prepare the Actor input for hashtag
-                run_input_post = {
-                    "directUrls": [directUrls],
-                    "resultsLimit": resultsLimit,
-                }
+            if not directUrls:
+                st.error("URL tidak boleh kosong.")
+            elif "?" in directUrls:
+                directUrls = directUrls.split("?")[0]
+            elif not directUrls.startswith("https://www.instagram.com/p/"):
+                st.error(
+                    "URL tidak valid. URL harus diawali dengan https://www.instagram.com/p/."
+                )
+            elif (
+                len(directUrls.split("https://www.instagram.com/p/")[1].rstrip("/"))
+                != 11
+            ):
+                st.error(
+                    "URL tidak valid. Periksa kembali bagian setelah https://www.instagram.com/p/."
+                )
+            elif resultsLimit is None:
+                st.error("Batas maksimum unggahan tidak boleh kosong.")
+            else:
+                if st.button("Crawl dan Klasifikasi"):
+                    # Prepare the Actor input for hashtag
+                    run_input_post = {
+                        "directUrls": [directUrls],
+                        "resultsLimit": resultsLimit,
+                    }
 
-                with st.spinner("Crawling data..."):
-                    # Run the Actor and wait for it to finish
-                    run_comment = client.actor("SbK00X0JYCPblD2wp").call(
-                        run_input=run_input_post
+                    with st.spinner("Crawling data..."):
+                        # Run the Actor and wait for it to finish
+                        run_comment = client.actor("SbK00X0JYCPblD2wp").call(
+                            run_input=run_input_post
+                        )
+
+                    # Fetch and print Actor results from the run's dataset (if there are any)
+                    data = []
+                    for item in client.dataset(
+                        run_comment["defaultDatasetId"]
+                    ).iterate_items():
+                        data.append(item)
+                    df = pd.DataFrame(data)
+
+                    filename = f"instagram-data/ie_komentar_{timestamp}.csv"
+                    df.to_csv(filename, index=False)
+
+                    # Load data
+                    file_path = filename
+                    try:
+                        df = pd.read_csv(file_path, encoding="latin1")
+                    except pd.errors.EmptyDataError:
+                        st.error("Unggahan tidak ditemukan.")
+                        st.stop()
+
+                    df["Processed"] = df["text"].apply(cleaning)
+                    df["Processed"] = df["Processed"].apply(normalize_slang)
+                    df["Processed"] = df["Processed"].apply(remove_stopwords)
+                    df["Processed"] = df["Processed"].apply(stemming)
+
+                    df.to_csv(file_path, index=False)
+
+                    # Klasifikasi menggunakan model SVM
+                    model_path = "svm_model.pkl"  # Ganti dengan path model Anda
+                    try:
+                        model = joblib.load(model_path)
+                    except FileNotFoundError:
+                        st.error("Model tidak ditemukan.")
+                        st.stop()
+
+                    X = df[
+                        "Processed"
+                    ]  # Menggunakan kolom 'processed' untuk klasifikasi
+                    predictions = model.predict(X)
+
+                    # Simpan hasil klasifikasi ke CSV baru
+                    df["label"] = predictions
+                    df = df.rename(
+                        columns={
+                            "text": "Text",
+                            "ownerUsername": "Username",
+                            "label": "Label",
+                        }
                     )
 
-                # Fetch and print Actor results from the run's dataset (if there are any)
-                data = []
-                for item in client.dataset(
-                    run_comment["defaultDatasetId"]
-                ).iterate_items():
-                    data.append(item)
-                df = pd.DataFrame(data)
+                    # Mengatur ulang index dimulai dari 1
+                    df.index = np.arange(1, len(df) + 1)
 
-                filename = f"instagram-data/ie_komentar_{timestamp}.csv"
-                df.to_csv(filename, index=False)
+                    output_filename = f"{filename.replace('.csv', '')}_predicted"
+                    df[["Text", "Username", "Label"]].to_csv(
+                        f"{output_filename}.csv", index=False
+                    )
 
+                    st.success("Crawling dan klasifikasi selesai!")
+                    st.dataframe(df[["Text", "Username", "Label"]])
+
+                    # Pie Chart untuk Distribusi Label
+                    st.subheader("Distribusi Label")
+                    label_counts = df["Label"].value_counts().reset_index()
+                    label_counts.columns = ["Label", "Count"]
+
+                    # Menghitung persentase untuk setiap label dan membatasi desimalnya
+                    total_count = label_counts["Count"].sum()
+                    label_counts["Percentage"] = (
+                        (label_counts["Count"] / total_count) * 100
+                    ).round(2)
+
+                    # Membuat pie chart dengan Altair untuk distribusi label
+                    pie_chart = (
+                        alt.Chart(label_counts)
+                        .mark_arc()
+                        .encode(
+                            theta=alt.Theta(field="Percentage", type="quantitative"),
+                            color=alt.Color(field="Label", type="nominal"),
+                            tooltip=[
+                                "Label",
+                                "Count",
+                                alt.Tooltip(
+                                    field="Percentage",
+                                    type="quantitative",
+                                    format=".2f",
+                                ),
+                            ],
+                        )
+                    )
+
+                    st.altair_chart(pie_chart, use_container_width=True)
+
+                    # Frekuensi of Words
+                    st.subheader("Frekuensi Kata")
+                    positive_texts = df[df["Label"] == "Positif"]["Processed"]
+                    negative_texts = df[df["Label"] == "Negatif"]["Processed"]
+                    top_positive_words = get_top_ngrams(
+                        positive_texts, ngram_range=(1, 1), n=30
+                    )
+                    top_negative_words = get_top_ngrams(
+                        negative_texts, ngram_range=(1, 1), n=30
+                    )
+                    positive_df = pd.DataFrame(
+                        top_positive_words, columns=["Kata", "Frekuensi"]
+                    ).sort_values(by="Frekuensi", ascending=False)
+                    negative_df = pd.DataFrame(
+                        top_negative_words, columns=["Kata", "Frekuensi"]
+                    ).sort_values(by="Frekuensi", ascending=False)
+
+                    # Create bar charts with Altair
+                    positive_chart = (
+                        alt.Chart(positive_df)
+                        .mark_bar()
+                        .encode(x=alt.X("Kata", sort=None), y="Frekuensi")
+                        .properties(title="Kata-Kata Teratas yang Dilabeli Positif")
+                    )
+
+                    negative_chart = (
+                        alt.Chart(negative_df)
+                        .mark_bar()
+                        .encode(x=alt.X("Kata", sort=None), y="Frekuensi")
+                        .properties(title="Kata-Kata Teratas yang Dilabeli Negatif")
+                    )
+
+                    st.altair_chart(positive_chart, use_container_width=True)
+                    st.altair_chart(negative_chart, use_container_width=True)
+
+                    # Bigram Analysis
+                    st.subheader("Frekuensi Bigram")
+                    top_positive_bigrams = get_top_ngrams(
+                        positive_texts, ngram_range=(2, 2), n=30
+                    )
+                    top_negative_bigrams = get_top_ngrams(
+                        negative_texts, ngram_range=(2, 2), n=30
+                    )
+                    positive_bigram_df = pd.DataFrame(
+                        top_positive_bigrams, columns=["Bigram", "Frekuensi"]
+                    ).sort_values(by="Frekuensi", ascending=False)
+                    negative_bigram_df = pd.DataFrame(
+                        top_negative_bigrams, columns=["Bigram", "Frekuensi"]
+                    ).sort_values(by="Frekuensi", ascending=False)
+
+                    # Create bigram bar charts with Altair
+                    positive_bigram_chart = (
+                        alt.Chart(positive_bigram_df)
+                        .mark_bar()
+                        .encode(x=alt.X("Bigram", sort=None), y="Frekuensi")
+                        .properties(title="Bigram-Bigram Teratas yang Dilabeli Positif")
+                    )
+
+                    negative_bigram_chart = (
+                        alt.Chart(negative_bigram_df)
+                        .mark_bar()
+                        .encode(x=alt.X("Bigram", sort=None), y="Frekuensi")
+                        .properties(title="Bigram-Bigram Teratas yang Dilabeli Negatif")
+                    )
+
+                    st.altair_chart(positive_bigram_chart, use_container_width=True)
+                    st.altair_chart(negative_bigram_chart, use_container_width=True)
+
+                    # Histogram
+                    st.subheader("Distribusi Panjang Karakter")
+                    df["Text Length"] = df["Processed"].apply(len)
+
+                    # Create histogram with Altair
+                    hist_chart = (
+                        alt.Chart(df)
+                        .transform_bin(
+                            "Panjang Karakter",
+                            field="Text Length",
+                            bin=alt.Bin(maxbins=50),
+                        )
+                        .transform_aggregate(
+                            Frekuensi="count()", groupby=["Panjang Karakter", "Label"]
+                        )
+                        .mark_bar()
+                        .encode(
+                            x="Panjang Karakter:Q", y="Frekuensi:Q", color="Label:N"
+                        )
+                        .properties(width=600, height=400, title="Histogram")
+                    )
+
+                    st.altair_chart(hist_chart, use_container_width=True)
+
+                    # Wordcloud
+                    st.subheader("Word Cloud")
+                    all_texts = df["Processed"]
+                    all_text = " ".join(all_texts.astype(str).tolist())
+                    circle_mask = np.array(Image.open("mask.png"))
+                    wordcloud = generate_wordcloud(all_text, circle_mask)
+                    st.image(wordcloud.to_array(), use_column_width=True)
     elif explorer_option == "X":
         st.header("X Explorer")
         st.write(
-            "Aplikasi ini memungkinkan Anda untuk melakukan crawling unggahan X dan mengklasifikasikan menggunakan model SVM."
+            "Aplikasi ini memungkinkan Anda untuk melakukan crawling unggahan X dan mengklasifikasikannya menggunakan model SVM."
         )
-        col1, col2 = st.columns(2)
-        with col1:
-            search_keyword = st.text_input(
-                "Masukkan kata kunci pencarian:", value="judi"
-            )
-        with col2:
-            limit = st.number_input(
-                "Masukkan batas maksimum unggahan:", min_value=20, value=200
-            )
 
-        col3, col4 = st.columns(2)
-        with col3:
-            start_date = st.date_input("Tanggal mulai:", value=today)
-        with col4:
-            end_date = st.date_input("Tanggal akhir:", value=tomorrow)
-        if not search_keyword:
-            st.error("Kata kunci pencarian tidak boleh kosong.")
-        elif limit is None:
-            st.error("Batas maksimum unggahan tidak boleh kosong.")
-        elif start_date is None:
-            st.error("Tanggal mulai tidak boleh kosong.")
-        elif end_date is None:
-            st.error("Tanggal akhir tidak boleh kosong.")
-        elif start_date > end_date:
-            st.error("Tanggal mulai tidak boleh lebih besar dari tanggal akhir.")
-        else:
-            if st.button("Crawl dan Klasifikasi"):
-                # Format search keyword
-                search_keyword_formatted = (
-                    f"{search_keyword} lang:id since:{start_date} until:{end_date}"
+        x_auth_token = os.getenv("X_AUTH_TOKEN")
+
+        x_option = st.selectbox(
+            "Pilih opsi:",
+            ("Unggahan Pribadi", "Pencari Unggahan"),
+        )
+
+        if x_option == "Unggahan Pribadi":
+            # Tambahkan kode untuk menangani unggahan pribadi di sini
+            col1, col2 = st.columns(2)
+            with col1:
+                search_keyword = st.text_input(
+                    "Masukkan username X:", value="KomisiJudi"
+                )
+            with col2:
+                limit = st.number_input(
+                    "Masukkan batas maksimum unggahan:", min_value=20, value=200
                 )
 
-                x_auth_token = os.getenv("X_AUTH_TOKEN")
+            col3, col4 = st.columns(2)
+            with col3:
+                start_date = st.date_input("Hanya unggahan sejak tanggal:", value=today)
+            with col4:
+                end_date = st.date_input(
+                    "Hanya unggahan sampai tanggal:", value=tomorrow
+                )
 
-                filename = f"x_explorer_{timestamp}.csv"
-
-                # Crawling data
-                with st.spinner("Crawling data..."):
-                    os.system(
-                        f'npx --yes tweet-harvest@latest -o "{filename}" -s "{search_keyword_formatted}" -l {limit} --token "{x_auth_token}"'
+            if not search_keyword:
+                st.error("Username X tidak boleh kosong.")
+            elif limit is None:
+                st.error("Batas maksimum unggahan tidak boleh kosong.")
+            elif start_date is None or end_date is None:
+                st.error("Tanggal tidak boleh kosong.")
+            elif start_date > end_date:
+                st.error("Silakan masukkan rentang tanggal yang valid.")
+            else:
+                if st.button("Crawl dan Klasifikasi"):
+                    # Format search keyword
+                    search_keyword_formatted = (
+                        f"from:{search_keyword} since:{start_date} until:{end_date}"
                     )
 
-                # Load data
-                file_path = f"tweets-data/{filename}"
-                try:
-                    df = pd.read_csv(file_path, encoding="latin1")
-                except pd.errors.EmptyDataError:
-                    st.error("Unggahan tidak ditemukan.")
-                    st.stop()
+                    filename = f"xe_{search_keyword}_{timestamp}.csv"
 
-                slang_df = pd.read_csv("Kata_Baku_Final.csv")
-                slang_dict = dict(zip(slang_df.iloc[:, 0], slang_df.iloc[:, 1]))
+                    with st.spinner("Crawling data..."):
+                        process = subprocess.Popen(
+                            f'npx --yes tweet-harvest@latest -o "{filename}" -s "{search_keyword_formatted}" -l {limit} --token "{x_auth_token}"',
+                            shell=True,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT,
+                        )
 
-                stopwords_df = pd.read_csv("Stopwords.csv")
-                stopwords = stopwords_df.iloc[:, 0].tolist()
+                        while True:
+                            output = process.stdout.readline()
+                            if output == "" and process.poll() is not None:
+                                break
+                            if output:
+                                line = output.strip().decode("utf-8")
+                                print(line)
+                                if (
+                                    "No more tweets found" in line
+                                    or "done scrolling" in line
+                                ):
+                                    print(
+                                        "No more tweets found or done scrolling, stopping..."
+                                    )
+                                    process.terminate()
+                                    break
+                        rc = process.poll()
 
-                def cleaning(text):
-                    text = str(text).lower()
-                    text = re.sub(r"(?:\@|http?\://|https?\://|www)\S+", "", text)
-                    text = re.sub(r"@[^\s]+", "", text)
-                    text = re.sub(r"#[^\s]+", "", text)
-                    text = re.sub(r"<.*?>", " ", text)
-                    text = re.sub(r"[^\w\s]", " ", text)
-                    text = re.sub(r"[^\x00-\x7F]+", " ", text)
-                    text = re.sub(r"\d+", "", text)
-                    text = re.sub(r"\bamp\b", "", text)
-                    text = re.sub(r"\n", " ", text)
-                    text = re.sub(r"\b[a-zA-Z]\b", " ", text)
-                    text = re.sub(r"(.)\1+", r"\1\1", text)
-                    text = re.sub(
-                        r"\b(\w+)(?:\W\1\b)+", r"\1", text, flags=re.IGNORECASE
+                    # Load data
+                    file_path = f"tweets-data/{filename}"
+                    try:
+                        df = pd.read_csv(file_path, encoding="latin1")
+                    except pd.errors.EmptyDataError:
+                        st.error("Unggahan tidak ditemukan.")
+                        st.stop()
+
+                    df["Processed"] = df["full_text"].apply(cleaning)
+                    df["Processed"] = df["Processed"].apply(normalize_slang)
+                    df["Processed"] = df["Processed"].apply(remove_stopwords)
+                    df["Processed"] = df["Processed"].apply(stemming)
+
+                    df.to_csv(file_path, index=False)
+
+                    # Klasifikasi menggunakan model SVM
+                    model_path = "svm_model.pkl"  # Ganti dengan path model Anda
+                    try:
+                        model = joblib.load(model_path)
+                    except FileNotFoundError:
+                        st.error("Model tidak ditemukan.")
+                        st.stop()
+
+                    X = df[
+                        "Processed"
+                    ]  # Menggunakan kolom 'processed' untuk klasifikasi
+                    predictions = model.predict(X)
+
+                    # Simpan hasil klasifikasi ke CSV baru
+                    df["label"] = predictions
+                    df = df.rename(
+                        columns={
+                            "full_text": "Text",
+                            "tweet_url": "URL",
+                            "username": "Username",
+                            "label": "Label",
+                        }
                     )
-                    text = re.sub(r"\s+", " ", text)
-                    text = text.strip()
-                    return text
 
-                def normalize_slang(text):
-                    return " ".join(slang_dict.get(word, word) for word in text.split())
+                    # Mengatur ulang index dimulai dari 1
+                    df.index = np.arange(1, len(df) + 1)
 
-                def remove_stopwords(text):
-                    return " ".join(
-                        word for word in text.split() if word not in stopwords
+                    output_filename = f"{filename.replace('.csv', '')}_predicted"
+                    df[["Text", "URL", "Username", "Label"]].to_csv(
+                        f"tweets-data/{output_filename}.csv", index=False
                     )
 
-                factory = StemmerFactory()
-                stemmer = factory.create_stemmer()
+                    st.success("Crawling dan klasifikasi selesai!")
+                    st.dataframe(df[["Text", "URL", "Username", "Label"]])
 
-                def stemming(text):
-                    return " ".join(stemmer.stem(word) for word in text.split())
+                    # Pie Chart untuk Distribusi Label
+                    st.subheader("Distribusi Label")
+                    label_counts = df["Label"].value_counts().reset_index()
+                    label_counts.columns = ["Label", "Count"]
 
-                df["Processed"] = df["full_text"].apply(cleaning)
-                df["Processed"] = df["Processed"].apply(normalize_slang)
-                df["Processed"] = df["Processed"].apply(remove_stopwords)
-                df["Processed"] = df["Processed"].apply(stemming)
+                    # Menghitung persentase untuk setiap label dan membatasi desimalnya
+                    total_count = label_counts["Count"].sum()
+                    label_counts["Percentage"] = (
+                        (label_counts["Count"] / total_count) * 100
+                    ).round(2)
 
-                df.to_csv(file_path, index=False)
-
-                # Klasifikasi menggunakan model SVM
-                model_path = "svm_model.pkl"  # Ganti dengan path model Anda
-                try:
-                    model = joblib.load(model_path)
-                except FileNotFoundError:
-                    st.error("Model tidak ditemukan.")
-                    st.stop()
-
-                X = df["Processed"]  # Menggunakan kolom 'processed' untuk klasifikasi
-                predictions = model.predict(X)
-
-                # Simpan hasil klasifikasi ke CSV baru
-                df["label"] = predictions
-                df = df.rename(
-                    columns={
-                        "full_text": "Text",
-                        "tweet_url": "URL",
-                        "username": "Username",
-                        "label": "Label",
-                    }
-                )
-
-                # Mengatur ulang index dimulai dari 1
-                df.index = np.arange(1, len(df) + 1)
-
-                output_filename = f"{filename.replace('.csv', '')}_predicted"
-                df[["Text", "URL", "Username", "Label"]].to_csv(
-                    f"tweets-data/{output_filename}.csv", index=False
-                )
-
-                st.success("Crawling dan klasifikasi selesai!")
-                st.dataframe(df[["Text", "URL", "Username", "Label"]])
-
-                # Pie Chart untuk Distribusi Label
-                st.subheader("Distribusi Label")
-                label_counts = df["Label"].value_counts().reset_index()
-                label_counts.columns = ["Label", "Count"]
-
-                # Menghitung persentase untuk setiap label dan membatasi desimalnya
-                total_count = label_counts["Count"].sum()
-                label_counts["Percentage"] = (
-                    (label_counts["Count"] / total_count) * 100
-                ).round(2)
-
-                # Membuat pie chart dengan Altair untuk distribusi label
-                pie_chart = (
-                    alt.Chart(label_counts)
-                    .mark_arc()
-                    .encode(
-                        theta=alt.Theta(field="Percentage", type="quantitative"),
-                        color=alt.Color(field="Label", type="nominal"),
-                        tooltip=[
-                            "Label",
-                            "Count",
-                            alt.Tooltip(
-                                field="Percentage", type="quantitative", format=".2f"
-                            ),
-                        ],
+                    # Membuat pie chart dengan Altair untuk distribusi label
+                    pie_chart = (
+                        alt.Chart(label_counts)
+                        .mark_arc()
+                        .encode(
+                            theta=alt.Theta(field="Percentage", type="quantitative"),
+                            color=alt.Color(field="Label", type="nominal"),
+                            tooltip=[
+                                "Label",
+                                "Count",
+                                alt.Tooltip(
+                                    field="Percentage",
+                                    type="quantitative",
+                                    format=".2f",
+                                ),
+                            ],
+                        )
                     )
-                )
 
-                st.altair_chart(pie_chart, use_container_width=True)
+                    st.altair_chart(pie_chart, use_container_width=True)
 
-                # Frekuensi of Words
-                st.subheader("Frekuensi Kata")
-                positive_texts = df[df["Label"] == "Positif"]["Processed"]
-                negative_texts = df[df["Label"] == "Negatif"]["Processed"]
-                top_positive_words = get_top_ngrams(
-                    positive_texts, ngram_range=(1, 1), n=30
-                )
-                top_negative_words = get_top_ngrams(
-                    negative_texts, ngram_range=(1, 1), n=30
-                )
-                positive_df = pd.DataFrame(
-                    top_positive_words, columns=["Kata", "Frekuensi"]
-                ).sort_values(by="Frekuensi", ascending=False)
-                negative_df = pd.DataFrame(
-                    top_negative_words, columns=["Kata", "Frekuensi"]
-                ).sort_values(by="Frekuensi", ascending=False)
-
-                # Create bar charts with Altair
-                positive_chart = (
-                    alt.Chart(positive_df)
-                    .mark_bar()
-                    .encode(x=alt.X("Kata", sort=None), y="Frekuensi")
-                    .properties(title="Kata-Kata Teratas yang Dilabeli Positif")
-                )
-
-                negative_chart = (
-                    alt.Chart(negative_df)
-                    .mark_bar()
-                    .encode(x=alt.X("Kata", sort=None), y="Frekuensi")
-                    .properties(title="Kata-Kata Teratas yang Dilabeli Negatif")
-                )
-
-                st.altair_chart(positive_chart, use_container_width=True)
-                st.altair_chart(negative_chart, use_container_width=True)
-
-                # Bigram Analysis
-                st.subheader("Frekuensi Bigram")
-                top_positive_bigrams = get_top_ngrams(
-                    positive_texts, ngram_range=(2, 2), n=30
-                )
-                top_negative_bigrams = get_top_ngrams(
-                    negative_texts, ngram_range=(2, 2), n=30
-                )
-                positive_bigram_df = pd.DataFrame(
-                    top_positive_bigrams, columns=["Bigram", "Frekuensi"]
-                ).sort_values(by="Frekuensi", ascending=False)
-                negative_bigram_df = pd.DataFrame(
-                    top_negative_bigrams, columns=["Bigram", "Frekuensi"]
-                ).sort_values(by="Frekuensi", ascending=False)
-
-                # Create bigram bar charts with Altair
-                positive_bigram_chart = (
-                    alt.Chart(positive_bigram_df)
-                    .mark_bar()
-                    .encode(x=alt.X("Bigram", sort=None), y="Frekuensi")
-                    .properties(title="Bigram-Bigram Teratas yang Dilabeli Positif")
-                )
-
-                negative_bigram_chart = (
-                    alt.Chart(negative_bigram_df)
-                    .mark_bar()
-                    .encode(x=alt.X("Bigram", sort=None), y="Frekuensi")
-                    .properties(title="Bigram-Bigram Teratas yang Dilabeli Negatif")
-                )
-
-                st.altair_chart(positive_bigram_chart, use_container_width=True)
-                st.altair_chart(negative_bigram_chart, use_container_width=True)
-
-                # Histogram
-                st.subheader("Distribusi Panjang Karakter")
-                df["Text Length"] = df["Processed"].apply(len)
-
-                # Create histogram with Altair
-                hist_chart = (
-                    alt.Chart(df)
-                    .transform_bin(
-                        "Panjang Karakter", field="Text Length", bin=alt.Bin(maxbins=50)
+                    # Frekuensi of Words
+                    st.subheader("Frekuensi Kata")
+                    positive_texts = df[df["Label"] == "Positif"]["Processed"]
+                    negative_texts = df[df["Label"] == "Negatif"]["Processed"]
+                    top_positive_words = get_top_ngrams(
+                        positive_texts, ngram_range=(1, 1), n=30
                     )
-                    .transform_aggregate(
-                        Frekuensi="count()", groupby=["Panjang Karakter", "Label"]
+                    top_negative_words = get_top_ngrams(
+                        negative_texts, ngram_range=(1, 1), n=30
                     )
-                    .mark_bar()
-                    .encode(x="Panjang Karakter:Q", y="Frekuensi:Q", color="Label:N")
-                    .properties(width=600, height=400, title="Histogram")
+                    positive_df = pd.DataFrame(
+                        top_positive_words, columns=["Kata", "Frekuensi"]
+                    ).sort_values(by="Frekuensi", ascending=False)
+                    negative_df = pd.DataFrame(
+                        top_negative_words, columns=["Kata", "Frekuensi"]
+                    ).sort_values(by="Frekuensi", ascending=False)
+
+                    # Create bar charts with Altair
+                    positive_chart = (
+                        alt.Chart(positive_df)
+                        .mark_bar()
+                        .encode(x=alt.X("Kata", sort=None), y="Frekuensi")
+                        .properties(title="Kata-Kata Teratas yang Dilabeli Positif")
+                    )
+
+                    negative_chart = (
+                        alt.Chart(negative_df)
+                        .mark_bar()
+                        .encode(x=alt.X("Kata", sort=None), y="Frekuensi")
+                        .properties(title="Kata-Kata Teratas yang Dilabeli Negatif")
+                    )
+
+                    st.altair_chart(positive_chart, use_container_width=True)
+                    st.altair_chart(negative_chart, use_container_width=True)
+
+                    # Bigram Analysis
+                    st.subheader("Frekuensi Bigram")
+                    top_positive_bigrams = get_top_ngrams(
+                        positive_texts, ngram_range=(2, 2), n=30
+                    )
+                    top_negative_bigrams = get_top_ngrams(
+                        negative_texts, ngram_range=(2, 2), n=30
+                    )
+                    positive_bigram_df = pd.DataFrame(
+                        top_positive_bigrams, columns=["Bigram", "Frekuensi"]
+                    ).sort_values(by="Frekuensi", ascending=False)
+                    negative_bigram_df = pd.DataFrame(
+                        top_negative_bigrams, columns=["Bigram", "Frekuensi"]
+                    ).sort_values(by="Frekuensi", ascending=False)
+
+                    # Create bigram bar charts with Altair
+                    positive_bigram_chart = (
+                        alt.Chart(positive_bigram_df)
+                        .mark_bar()
+                        .encode(x=alt.X("Bigram", sort=None), y="Frekuensi")
+                        .properties(title="Bigram-Bigram Teratas yang Dilabeli Positif")
+                    )
+
+                    negative_bigram_chart = (
+                        alt.Chart(negative_bigram_df)
+                        .mark_bar()
+                        .encode(x=alt.X("Bigram", sort=None), y="Frekuensi")
+                        .properties(title="Bigram-Bigram Teratas yang Dilabeli Negatif")
+                    )
+
+                    st.altair_chart(positive_bigram_chart, use_container_width=True)
+                    st.altair_chart(negative_bigram_chart, use_container_width=True)
+
+                    # Histogram
+                    st.subheader("Distribusi Panjang Karakter")
+                    df["Text Length"] = df["Processed"].apply(len)
+
+                    # Create histogram with Altair
+                    hist_chart = (
+                        alt.Chart(df)
+                        .transform_bin(
+                            "Panjang Karakter",
+                            field="Text Length",
+                            bin=alt.Bin(maxbins=50),
+                        )
+                        .transform_aggregate(
+                            Frekuensi="count()", groupby=["Panjang Karakter", "Label"]
+                        )
+                        .mark_bar()
+                        .encode(
+                            x="Panjang Karakter:Q", y="Frekuensi:Q", color="Label:N"
+                        )
+                        .properties(width=600, height=400, title="Histogram")
+                    )
+
+                    st.altair_chart(hist_chart, use_container_width=True)
+
+                    # Wordcloud
+                    st.subheader("Word Cloud")
+                    all_texts = df["Processed"]
+                    all_text = " ".join(all_texts.astype(str).tolist())
+                    circle_mask = np.array(Image.open("mask.png"))
+                    wordcloud = generate_wordcloud(all_text, circle_mask)
+                    st.image(wordcloud.to_array(), use_column_width=True)
+        elif x_option == "Pencari Unggahan":
+            # Tambahkan kode untuk menangani pencarian unggahan di sini
+            col1, col2 = st.columns(2)
+            with col1:
+                search_keyword = st.text_input(
+                    "Masukkan kata kunci pencarian:", value="judi"
+                )
+            with col2:
+                limit = st.number_input(
+                    "Masukkan batas maksimum unggahan:", min_value=20, value=200
                 )
 
-                st.altair_chart(hist_chart, use_container_width=True)
+            col3, col4 = st.columns(2)
+            with col3:
+                start_date = st.date_input("Hanya unggahan sejak tanggal:", value=today)
+            with col4:
+                end_date = st.date_input(
+                    "Hanya unggahan sampai tanggal:", value=tomorrow
+                )
+            if not search_keyword:
+                st.error("Kata kunci pencarian tidak boleh kosong.")
+            elif limit is None:
+                st.error("Batas maksimum unggahan tidak boleh kosong.")
+            elif start_date is None:
+                st.error("Tanggal mulai tidak boleh kosong.")
+            elif end_date is None:
+                st.error("Tanggal akhir tidak boleh kosong.")
+            elif start_date > end_date:
+                st.error("Tanggal mulai tidak boleh lebih besar dari tanggal akhir.")
+            else:
+                if st.button("Crawl dan Klasifikasi"):
+                    # Format search keyword
+                    search_keyword_formatted = (
+                        f"{search_keyword} lang:id since:{start_date} until:{end_date}"
+                    )
 
-                # Wordcloud
-                st.subheader("Word Cloud")
-                all_texts = df["Processed"]
-                all_text = " ".join(all_texts.astype(str).tolist())
-                circle_mask = np.array(Image.open("mask.png"))
-                wordcloud = generate_wordcloud(all_text, circle_mask)
-                st.image(wordcloud.to_array(), use_column_width=True)
+                    filename = f"xe_{search_keyword}_{timestamp}.csv"
+
+                    # Crawling data
+                    with st.spinner("Crawling data..."):
+                        process = subprocess.Popen(
+                            f'npx --yes tweet-harvest@latest -o "{filename}" -s "{search_keyword_formatted}" -l {limit} --token "{x_auth_token}"',
+                            shell=True,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT,
+                        )
+
+                        while True:
+                            output = process.stdout.readline()
+                            if output == "" and process.poll() is not None:
+                                break
+                            if output:
+                                line = output.strip().decode("utf-8")
+                                print(line)
+                                if (
+                                    "No more tweets found" in line
+                                    or "done scrolling" in line
+                                ):
+                                    print(
+                                        "No more tweets found or done scrolling, stopping..."
+                                    )
+                                    process.terminate()
+                                    break
+                        rc = process.poll()
+
+                    # Load data
+                    file_path = f"tweets-data/{filename}"
+                    try:
+                        df = pd.read_csv(file_path, encoding="latin1")
+                    except pd.errors.EmptyDataError:
+                        st.error("Unggahan tidak ditemukan.")
+                        st.stop()
+
+                    df["Processed"] = df["full_text"].apply(cleaning)
+                    df["Processed"] = df["Processed"].apply(normalize_slang)
+                    df["Processed"] = df["Processed"].apply(remove_stopwords)
+                    df["Processed"] = df["Processed"].apply(stemming)
+
+                    df.to_csv(file_path, index=False)
+
+                    # Klasifikasi menggunakan model SVM
+                    model_path = "svm_model.pkl"  # Ganti dengan path model Anda
+                    try:
+                        model = joblib.load(model_path)
+                    except FileNotFoundError:
+                        st.error("Model tidak ditemukan.")
+                        st.stop()
+
+                    X = df[
+                        "Processed"
+                    ]  # Menggunakan kolom 'processed' untuk klasifikasi
+                    predictions = model.predict(X)
+
+                    # Simpan hasil klasifikasi ke CSV baru
+                    df["label"] = predictions
+                    df = df.rename(
+                        columns={
+                            "full_text": "Text",
+                            "tweet_url": "URL",
+                            "username": "Username",
+                            "label": "Label",
+                        }
+                    )
+
+                    # Mengatur ulang index dimulai dari 1
+                    df.index = np.arange(1, len(df) + 1)
+
+                    output_filename = f"{filename.replace('.csv', '')}_predicted"
+                    df[["Text", "URL", "Username", "Label"]].to_csv(
+                        f"tweets-data/{output_filename}.csv", index=False
+                    )
+
+                    st.success("Crawling dan klasifikasi selesai!")
+                    st.dataframe(df[["Text", "URL", "Username", "Label"]])
+
+                    # Pie Chart untuk Distribusi Label
+                    st.subheader("Distribusi Label")
+                    label_counts = df["Label"].value_counts().reset_index()
+                    label_counts.columns = ["Label", "Count"]
+
+                    # Menghitung persentase untuk setiap label dan membatasi desimalnya
+                    total_count = label_counts["Count"].sum()
+                    label_counts["Percentage"] = (
+                        (label_counts["Count"] / total_count) * 100
+                    ).round(2)
+
+                    # Membuat pie chart dengan Altair untuk distribusi label
+                    pie_chart = (
+                        alt.Chart(label_counts)
+                        .mark_arc()
+                        .encode(
+                            theta=alt.Theta(field="Percentage", type="quantitative"),
+                            color=alt.Color(field="Label", type="nominal"),
+                            tooltip=[
+                                "Label",
+                                "Count",
+                                alt.Tooltip(
+                                    field="Percentage",
+                                    type="quantitative",
+                                    format=".2f",
+                                ),
+                            ],
+                        )
+                    )
+
+                    st.altair_chart(pie_chart, use_container_width=True)
+
+                    # Frekuensi of Words
+                    st.subheader("Frekuensi Kata")
+                    positive_texts = df[df["Label"] == "Positif"]["Processed"]
+                    negative_texts = df[df["Label"] == "Negatif"]["Processed"]
+                    top_positive_words = get_top_ngrams(
+                        positive_texts, ngram_range=(1, 1), n=30
+                    )
+                    top_negative_words = get_top_ngrams(
+                        negative_texts, ngram_range=(1, 1), n=30
+                    )
+                    positive_df = pd.DataFrame(
+                        top_positive_words, columns=["Kata", "Frekuensi"]
+                    ).sort_values(by="Frekuensi", ascending=False)
+                    negative_df = pd.DataFrame(
+                        top_negative_words, columns=["Kata", "Frekuensi"]
+                    ).sort_values(by="Frekuensi", ascending=False)
+
+                    # Create bar charts with Altair
+                    positive_chart = (
+                        alt.Chart(positive_df)
+                        .mark_bar()
+                        .encode(x=alt.X("Kata", sort=None), y="Frekuensi")
+                        .properties(title="Kata-Kata Teratas yang Dilabeli Positif")
+                    )
+
+                    negative_chart = (
+                        alt.Chart(negative_df)
+                        .mark_bar()
+                        .encode(x=alt.X("Kata", sort=None), y="Frekuensi")
+                        .properties(title="Kata-Kata Teratas yang Dilabeli Negatif")
+                    )
+
+                    st.altair_chart(positive_chart, use_container_width=True)
+                    st.altair_chart(negative_chart, use_container_width=True)
+
+                    # Bigram Analysis
+                    st.subheader("Frekuensi Bigram")
+                    top_positive_bigrams = get_top_ngrams(
+                        positive_texts, ngram_range=(2, 2), n=30
+                    )
+                    top_negative_bigrams = get_top_ngrams(
+                        negative_texts, ngram_range=(2, 2), n=30
+                    )
+                    positive_bigram_df = pd.DataFrame(
+                        top_positive_bigrams, columns=["Bigram", "Frekuensi"]
+                    ).sort_values(by="Frekuensi", ascending=False)
+                    negative_bigram_df = pd.DataFrame(
+                        top_negative_bigrams, columns=["Bigram", "Frekuensi"]
+                    ).sort_values(by="Frekuensi", ascending=False)
+
+                    # Create bigram bar charts with Altair
+                    positive_bigram_chart = (
+                        alt.Chart(positive_bigram_df)
+                        .mark_bar()
+                        .encode(x=alt.X("Bigram", sort=None), y="Frekuensi")
+                        .properties(title="Bigram-Bigram Teratas yang Dilabeli Positif")
+                    )
+
+                    negative_bigram_chart = (
+                        alt.Chart(negative_bigram_df)
+                        .mark_bar()
+                        .encode(x=alt.X("Bigram", sort=None), y="Frekuensi")
+                        .properties(title="Bigram-Bigram Teratas yang Dilabeli Negatif")
+                    )
+
+                    st.altair_chart(positive_bigram_chart, use_container_width=True)
+                    st.altair_chart(negative_bigram_chart, use_container_width=True)
+
+                    # Histogram
+                    st.subheader("Distribusi Panjang Karakter")
+                    df["Text Length"] = df["Processed"].apply(len)
+
+                    # Create histogram with Altair
+                    hist_chart = (
+                        alt.Chart(df)
+                        .transform_bin(
+                            "Panjang Karakter",
+                            field="Text Length",
+                            bin=alt.Bin(maxbins=50),
+                        )
+                        .transform_aggregate(
+                            Frekuensi="count()", groupby=["Panjang Karakter", "Label"]
+                        )
+                        .mark_bar()
+                        .encode(
+                            x="Panjang Karakter:Q", y="Frekuensi:Q", color="Label:N"
+                        )
+                        .properties(width=600, height=400, title="Histogram")
+                    )
+
+                    st.altair_chart(hist_chart, use_container_width=True)
+
+                    # Wordcloud
+                    st.subheader("Word Cloud")
+                    all_texts = df["Processed"]
+                    all_text = " ".join(all_texts.astype(str).tolist())
+                    circle_mask = np.array(Image.open("mask.png"))
+                    wordcloud = generate_wordcloud(all_text, circle_mask)
+                    st.image(wordcloud.to_array(), use_column_width=True)
 
 
 elif page == "About":
     st.title("About")
-    st.write("This is an about page.")
+    st.write(
+        "This application is designed to perform social media data crawling and classification."
+    )
+
+    st.subheader("Our Mission")
+    st.write(
+        "Our mission is to provide a user-friendly interface for social media data analysis. We aim to make data analysis accessible to everyone, regardless of their technical skills. Additionally, we are committed to assisting authorities in combating online gambling promotions."
+    )
+
+    st.subheader("Contact Us")
+    st.write("For any inquiries, please contact us at: faarismudawork@gmail.com")
