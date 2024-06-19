@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 import os
 import re
 
@@ -52,13 +52,25 @@ def generate_wordcloud(all_text, circle_mask):
     ).generate(all_text)
 
 
-def get_top_ngrams(corpus, ngram_range=(1, 1), n=None):
+# def get_top_ngrams(corpus, ngram_range=(1, 1), n=None):
+#     vec = CountVectorizer(ngram_range=ngram_range, stop_words=stop_words).fit(corpus)
+#     bag_of_words = vec.transform(corpus)
+#     sum_words = bag_of_words.sum(axis=0)
+#     words_freq = [(word, sum_words[0, idx]) for word, idx in vec.vocabulary_.items()]
+#     words_freq = sorted(words_freq, key=lambda x: x[1], reverse=True)
+#     return words_freq[:n]
+
+
+def get_top_ngrams(corpus, ngram_range=(1, 1), stop_words=None, n=None):
+    if corpus.empty:
+        return []
     vec = CountVectorizer(ngram_range=ngram_range, stop_words=stop_words).fit(corpus)
     bag_of_words = vec.transform(corpus)
     sum_words = bag_of_words.sum(axis=0)
     words_freq = [(word, sum_words[0, idx]) for word, idx in vec.vocabulary_.items()]
     words_freq = sorted(words_freq, key=lambda x: x[1], reverse=True)
     return words_freq[:n]
+
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -229,24 +241,213 @@ if page == "OGPD":
 
 elif page == "Explorer":
     st.title("Explorer")
+
+    APIFY_TOKEN = os.getenv("APIFY_TOKEN")
+    client = ApifyClient(APIFY_TOKEN)
+
     explorer_option = st.selectbox("Pilih Explorer:", ("Facebook", "Instagram", "X"))
 
     if explorer_option == "Facebook":
         st.header("Facebook Explorer")
 
+        choice = st.selectbox(
+            "Pilih opsi:",
+            options=[
+                "Unggahan Pribadi atau Halaman",
+                "Unggahan Grup",
+                "Unggahan dengan Hashtag",
+                "Komentar dalam Unggahan",
+            ],
+        )
+
+        if not os.path.exists("facebook-data"):
+            os.makedirs("facebook-data")
+
+        if choice == "Unggahan Pribadi atau Halaman":
+            col1, col2 = st.columns(2)
+            with col1:
+                username = st.text_input(
+                    "Masukkan username Facebook:", value="humansofnewyork"
+                )
+            with col2:
+                resultsLimit = st.number_input(
+                    "Masukkan batas maksimum unggahan:", min_value=1, value=20
+                )
+
+            col3, col4 = st.columns(2)
+            with col3:
+                start_date = st.date_input(
+                    "Hanya unggahan setelah tanggal:", value=yesterday
+                )
+            with col4:
+                end_date = st.date_input(
+                    "Hanya unggahan sebelum tanggal:", value=tomorrow
+                )
+
+            if st.button("Crawl Facebook"):
+                # Prepare the Actor input for Facebook account
+                run_input_account = {
+                    "startUrls": [{"url": f"https://www.facebook.com/{username}/"}],
+                    "resultsLimit": resultsLimit,
+                    "onlyPostsNewerThan": start_date.strftime("%Y-%m-%d"),
+                    "onlyPostsOlderThan": end_date.strftime("%Y-%m-%d"),
+                }
+
+                with st.spinner("Crawling data..."):
+                    # Run the Actor and wait for it to finish
+                    run_account = client.actor("KoJrdxJCTtpon81KY").call(
+                        run_input=run_input_account
+                    )
+
+                # Fetch and print Actor results from the run's dataset (if there are any)
+                data = []
+                for item in client.dataset(
+                    run_account["defaultDatasetId"]
+                ).iterate_items():
+                    data.append(item)
+                df = pd.DataFrame(data)
+
+                filename = f"facebook-data/fe_unggahan_{username}_{timestamp}.csv"
+                df.to_csv(filename, index=False)
+        elif choice == "Unggahan Grup":
+            col1, col2 = st.columns(2)
+            with col1:
+                group_url = st.text_input(
+                    "Masukkan URL grup Facebook:",
+                    value="https://www.facebook.com/groups/874728723021553",
+                )
+            with col2:
+                resultsLimit = st.number_input(
+                    "Masukkan batas maksimum unggahan:", min_value=1, value=20
+                )
+            col3, col4 = st.columns(2)
+            with col3:
+                viewOption = st.selectbox(
+                    "Pilih opsi tampilan:",
+                    options=["CHRONOLOGICAL", "RECENT_ACTIVITY", "TOP_POSTS"],
+                )
+            with col4:
+                onlyPostsNewerThan = st.date_input(
+                    "Hanya unggahan setelah tanggal:", value=yesterday
+                )
+
+            if st.button("Crawl Facebook"):
+                # Prepare the Actor input for Facebook group
+                run_input_group = {
+                    "startUrls": [{"url": group_url}],
+                    "resultsLimit": resultsLimit,
+                    "viewOption": viewOption,
+                    "onlyPostsNewerThan": onlyPostsNewerThan.strftime("%Y-%m-%d"),
+                }
+
+                with st.spinner("Crawling data..."):
+                    # Run the Actor and wait for it to finish
+                    run_group = client.actor("2chN8UQcH1CfxLRNE").call(
+                        run_input=run_input_group
+                    )
+
+                # Fetch and print Actor results from the run's dataset (if there are any)
+                data = []
+                for item in client.dataset(
+                    run_group["defaultDatasetId"]
+                ).iterate_items():
+                    data.append(item)
+                df = pd.DataFrame(data)
+
+                filename = f"facebook-data/fe_unggahan_group_{timestamp}.csv"
+                df.to_csv(filename, index=False)
+
+        elif choice == "Unggahan dengan Hashtag":
+            col1, col2 = st.columns(2)
+            with col1:
+                hashtag = st.text_input("Masukkan hashtag:", value="judi")
+            with col2:
+                resultsLimit = st.number_input(
+                    "Masukkan batas maksimum unggahan:", min_value=1, value=20
+                )
+
+            if st.button("Crawl Facebook"):
+                # Prepare the Actor input for Facebook hashtag
+                run_input_hashtag = {
+                    "keywordList": [hashtag],
+                    "resultsLimit": resultsLimit,
+                }
+
+                with st.spinner("Crawling data..."):
+                    # Run the Actor and wait for it to finish
+                    run_hashtag = client.actor("qgl7gVMdjLUUrMI5P").call(
+                        run_input=run_input_hashtag
+                    )
+
+                # Fetch and print Actor results from the run's dataset (if there are any)
+                data = []
+                for item in client.dataset(
+                    run_hashtag["defaultDatasetId"]
+                ).iterate_items():
+                    data.append(item)
+                df = pd.DataFrame(data)
+
+                filename = f"facebook-data/fe_unggahan_{hashtag}_{timestamp}.csv"
+                df.to_csv(filename, index=False)
+
+        elif choice == "Komentar dalam Unggahan":
+            startUrls = st.text_input(
+                "Masukkan URL unggahan Facebook:",
+                value="https://www.facebook.com/humansofnewyork/posts/pfbid0BbKbkisExKGSKuhee9a7i86RwRuMKFC8NSkKStB7CsM3uXJuAAfZLrkcJMXxhH4Yl",
+            )
+
+            col1, col2 = st.columns(2)
+            with col1:
+                resultsLimit = st.number_input(
+                    "Masukkan batas maksimum komentar:", min_value=1, value=20
+                )
+            with col2:
+                viewOption = st.selectbox(
+                    "Pilih opsi tampilan:",
+                    options=["RANKED_UNFILTERED", "RANKED_THREADED", "RECENT_ACTIVITY"],
+                )
+
+            if st.button("Crawl Facebook"):
+                # Prepare the Actor input for Facebook post
+                run_input_post = {
+                    "startUrls": [{"url": startUrls}],
+                    "resultsLimit": resultsLimit,
+                    "includeNestedComments": False,
+                    "viewOption": viewOption,
+                }
+
+                with st.spinner("Crawling data..."):
+                    # Run the Actor and wait for it to finish
+                    run_post = client.actor("us5srxAYnsrkgUv2v").call(
+                        run_input=run_input_post
+                    )
+
+                # Fetch and print Actor results from the run's dataset (if there are any)
+                data = []
+                for item in client.dataset(
+                    run_post["defaultDatasetId"]
+                ).iterate_items():
+                    data.append(item)
+                df = pd.DataFrame(data)
+
+                filename = f"facebook-data/fe_komentar_{timestamp}.csv"
+                df.to_csv(filename, index=False)
+
     elif explorer_option == "Instagram":
         st.header("Instagram Explorer")
 
-        APIFY_TOKEN = os.getenv("APIFY_TOKEN")
-
-        # Initialize the ApifyClient with your token
-        client = ApifyClient(APIFY_TOKEN)
-
         # Add new input for choice
-        choice = st.selectbox("Pilih jenis crawling:", options=["Unggahan Pribadi", "Unggahan dengan Hashtag", "Komentar dalam Unggahan"])
-        
-        if not os.path.exists('instagram-data'):
-            os.makedirs('instagram-data')
+        choice = st.selectbox(
+            "Pilih jenis crawling:",
+            options=[
+                "Unggahan Pribadi",
+                "Unggahan dengan Hashtag",
+                "Komentar dalam Unggahan",
+            ],
+        )
+
+        if not os.path.exists("instagram-data"):
+            os.makedirs("instagram-data")
 
         if choice == "Unggahan Pribadi":
             col1, col2 = st.columns(2)
@@ -265,13 +466,12 @@ elif page == "Explorer":
                     "username": [username],
                     "resultsLimit": resultsLimit,
                 }
-                
+
                 with st.spinner("Crawling data..."):
-                # Run the Actor and wait for it to finish
+                    # Run the Actor and wait for it to finish
                     run_account = client.actor("nH2AHrwxeTRJoN5hX").call(
                         run_input=run_input_account
                     )
- 
 
                 # Fetch and print Actor results from the run's dataset (if there are any)
                 data = []
@@ -287,7 +487,7 @@ elif page == "Explorer":
         elif choice == "Unggahan dengan Hashtag":
             # Add new input for hashtag
             hashtags = st.text_input("Masukkan hashtag:", value="judi")
-            
+
             col1, col2 = st.columns(2)
             with col1:
                 resultsLimit = st.number_input(
@@ -305,13 +505,12 @@ elif page == "Explorer":
                     "resultsLimit": resultsLimit,
                     "onlyPostsNewerThan": onlyPostsNewerThan.strftime("%Y-%m-%d"),
                 }
-                
+
                 with st.spinner("Crawling data..."):
                     # Run the Actor and wait for it to finish
                     run_hashtag = client.actor("reGe1ST3OBgYZSsZJ").call(
                         run_input=run_input_hashtag
                     )
-
 
                 # Fetch and print Actor results from the run's dataset (if there are any)
                 data = []
@@ -323,10 +522,13 @@ elif page == "Explorer":
 
                 filename = f"instagram-data/ie_unggahan_{hashtags}_{timestamp}.csv"
                 df.to_csv(filename, index=False)
-                
+
         elif choice == "Komentar dalam Unggahan":
             # Add new input for hashtag
-            directUrls = st.text_input("Masukkan link unggahan Instagram:", value="https://www.instagram.com/p/Bi-hISIghYe/")
+            directUrls = st.text_input(
+                "Masukkan link unggahan Instagram:",
+                value="https://www.instagram.com/p/Bi-hISIghYe/",
+            )
             resultsLimit = st.number_input(
                 "Masukkan batas maksimum komentar:", min_value=1, value=20
             )
