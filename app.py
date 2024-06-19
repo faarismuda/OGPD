@@ -52,15 +52,6 @@ def generate_wordcloud(all_text, circle_mask):
     ).generate(all_text)
 
 
-# def get_top_ngrams(corpus, ngram_range=(1, 1), n=None):
-#     vec = CountVectorizer(ngram_range=ngram_range, stop_words=stop_words).fit(corpus)
-#     bag_of_words = vec.transform(corpus)
-#     sum_words = bag_of_words.sum(axis=0)
-#     words_freq = [(word, sum_words[0, idx]) for word, idx in vec.vocabulary_.items()]
-#     words_freq = sorted(words_freq, key=lambda x: x[1], reverse=True)
-#     return words_freq[:n]
-
-
 def get_top_ngrams(corpus, ngram_range=(1, 1), stop_words=None, n=None):
     if corpus.empty:
         return []
@@ -112,12 +103,12 @@ if page == "OGPD":
         "Selamat datang di Online Gambling Promotion Detector. Sistem ini dirancang untuk membantu Anda dalam mengklasifikasikan konten yang terkait dengan promosi judi daring di platform media sosial."
     )
     st.write(
-        "Sistem ini menggunakan algoritma Support Vector Machine (SVM) untuk memproses dan menganalisis data yang dikumpulkan dari media sosial X. Dengan mengumpulkan dan memproses sekitar 38.000 unggahan yang telah diberi label positif untuk unggahan yang mengandung promosi dan negatif untuk unggahan yang tidak mengandung promosi, dibuat suatu model yang kemudian dilatih agar sistem ini mampu mendeteksi apakah suatu unggahan di media sosial mempromosikan judi daring atau tidak."
+        "Sistem ini menggunakan algoritma Support Vector Machine (SVM) untuk memproses dan menganalisis data yang dikumpulkan dari media sosial X. Dengan mengumpulkan dan memproses sekitar puluhan ribu unggahan yang telah diberi label positif untuk unggahan yang mengandung promosi dan negatif untuk unggahan yang tidak mengandung promosi, dibuat suatu model yang kemudian dilatih agar sistem ini mampu mendeteksi apakah suatu unggahan di media sosial mempromosikan judi daring atau tidak."
     )
 
     st.header("Analisis Data")
     st.write(
-        "Dari analisis terhadap sekitar 38.000 unggahan yang telah dikumpulkan dalam rentang awal tahun 2019 hingga akhir tahun 2023, berikut adalah beberapa temuan yang dapat dilihat melalui visualisasi data:"
+        "Dari analisis terhadap sekitar 38.000 unggahan dengan kata kunci “judi” yang telah dikumpulkan dalam rentang awal tahun 2019 hingga akhir tahun 2023, berikut adalah beberapa temuan yang dapat dilihat melalui visualisasi data:"
     )
 
     # Pie Chart untuk Distribusi Label
@@ -181,7 +172,7 @@ if page == "OGPD":
     st.altair_chart(negative_chart, use_container_width=True)
 
     # Bigram Analysis
-    st.subheader("Analisis Bigram")
+    st.subheader("Frekuensi Bigram")
     top_positive_bigrams = get_top_ngrams(positive_texts, ngram_range=(2, 2), n=30)
     top_negative_bigrams = get_top_ngrams(negative_texts, ngram_range=(2, 2), n=30)
     positive_bigram_df = pd.DataFrame(
@@ -242,13 +233,13 @@ if page == "OGPD":
 elif page == "Explorer":
     st.title("Explorer")
 
-    APIFY_TOKEN = os.getenv("APIFY_TOKEN")
-    client = ApifyClient(APIFY_TOKEN)
-
     explorer_option = st.selectbox("Pilih Explorer:", ("Facebook", "Instagram", "X"))
 
     if explorer_option == "Facebook":
         st.header("Facebook Explorer")
+
+        APIFY_TOKEN = os.getenv("APIFY_TOKEN_FACEBOOK")
+        client = ApifyClient(APIFY_TOKEN)
 
         choice = st.selectbox(
             "Pilih opsi:",
@@ -284,7 +275,7 @@ elif page == "Explorer":
                     "Hanya unggahan sebelum tanggal:", value=tomorrow
                 )
 
-            if st.button("Crawl Facebook"):
+            if st.button("Crawl dan Klasifikasi"):
                 # Prepare the Actor input for Facebook account
                 run_input_account = {
                     "startUrls": [{"url": f"https://www.facebook.com/{username}/"}],
@@ -331,7 +322,7 @@ elif page == "Explorer":
                     "Hanya unggahan setelah tanggal:", value=yesterday
                 )
 
-            if st.button("Crawl Facebook"):
+            if st.button("Crawl dan Klasifikasi"):
                 # Prepare the Actor input for Facebook group
                 run_input_group = {
                     "startUrls": [{"url": group_url}],
@@ -366,7 +357,7 @@ elif page == "Explorer":
                     "Masukkan batas maksimum unggahan:", min_value=1, value=20
                 )
 
-            if st.button("Crawl Facebook"):
+            if st.button("Crawl dan Klasifikasi"):
                 # Prepare the Actor input for Facebook hashtag
                 run_input_hashtag = {
                     "keywordList": [hashtag],
@@ -407,7 +398,7 @@ elif page == "Explorer":
                     options=["RANKED_UNFILTERED", "RANKED_THREADED", "RECENT_ACTIVITY"],
                 )
 
-            if st.button("Crawl Facebook"):
+            if st.button("Crawl dan Klasifikasi"):
                 # Prepare the Actor input for Facebook post
                 run_input_post = {
                     "startUrls": [{"url": startUrls}],
@@ -436,6 +427,9 @@ elif page == "Explorer":
     elif explorer_option == "Instagram":
         st.header("Instagram Explorer")
 
+        APIFY_TOKEN = os.getenv("APIFY_TOKEN_INSTAGRAM")
+        client = ApifyClient(APIFY_TOKEN)
+
         # Add new input for choice
         choice = st.selectbox(
             "Pilih jenis crawling:",
@@ -460,7 +454,7 @@ elif page == "Explorer":
                     "Masukkan batas maksimum unggahan:", min_value=1, value=20
                 )
 
-            if st.button("Crawl Instagram"):
+            if st.button("Crawl dan Klasifikasi"):
                 # Prepare the Actor input for Instagram account
                 run_input_account = {
                     "username": [username],
@@ -498,7 +492,7 @@ elif page == "Explorer":
                     "Hanya unggahan setelah tanggal:", value=yesterday
                 )
 
-            if st.button("Crawl Instagram"):
+            if st.button("Crawl dan Klasifikasi"):
                 # Prepare the Actor input for hashtag
                 run_input_hashtag = {
                     "hashtags": [hashtags],
@@ -533,7 +527,7 @@ elif page == "Explorer":
                 "Masukkan batas maksimum komentar:", min_value=1, value=20
             )
 
-            if st.button("Crawl Instagram"):
+            if st.button("Crawl dan Klasifikasi"):
                 # Prepare the Actor input for hashtag
                 run_input_post = {
                     "directUrls": [directUrls],
@@ -588,7 +582,7 @@ elif page == "Explorer":
         elif start_date > end_date:
             st.error("Tanggal mulai tidak boleh lebih besar dari tanggal akhir.")
         else:
-            if st.button("Crawl dan Prediksi"):
+            if st.button("Crawl dan Klasifikasi"):
                 # Format search keyword
                 search_keyword_formatted = (
                     f"{search_keyword} lang:id since:{start_date} until:{end_date}"
@@ -659,7 +653,7 @@ elif page == "Explorer":
 
                 df.to_csv(file_path, index=False)
 
-                # Prediksi menggunakan model SVM
+                # Klasifikasi menggunakan model SVM
                 model_path = "svm_model.pkl"  # Ganti dengan path model Anda
                 try:
                     model = joblib.load(model_path)
@@ -758,7 +752,7 @@ elif page == "Explorer":
                 st.altair_chart(negative_chart, use_container_width=True)
 
                 # Bigram Analysis
-                st.subheader("Analisis Bigram")
+                st.subheader("Frekuensi Bigram")
                 top_positive_bigrams = get_top_ngrams(
                     positive_texts, ngram_range=(2, 2), n=30
                 )
