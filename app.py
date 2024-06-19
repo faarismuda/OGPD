@@ -274,6 +274,9 @@ elif page == "Explorer":
 
     if explorer_option == "Facebook":
         st.header("Facebook Explorer")
+        st.write(
+            "Aplikasi ini memungkinkan Anda untuk melakukan crawling unggahan atau komentar di Facebook dan mengklasifikasikannya menggunakan model SVM."
+        )
 
         APIFY_TOKEN = os.getenv("APIFY_TOKEN_FACEBOOK")
         client = ApifyClient(APIFY_TOKEN)
@@ -464,6 +467,10 @@ elif page == "Explorer":
 
     elif explorer_option == "Instagram":
         st.header("Instagram Explorer")
+        
+        st.write(
+            "Aplikasi ini memungkinkan Anda untuk melakukan crawling unggahan atau komentar di Instagram dan mengklasifikasikannya menggunakan model SVM."
+        )
 
         APIFY_TOKEN = os.getenv("APIFY_TOKEN_INSTAGRAM")
         client = ApifyClient(APIFY_TOKEN)
