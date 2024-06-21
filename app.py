@@ -342,18 +342,9 @@ elif page == "Explorer":
                 output_filename = f"{filename.replace('.csv', '')}_predicted"
                 df[["Text", "Label"]].to_csv(f"{output_filename}.csv", index=False)
 
-                # CSS Styling
-                st.markdown(
-                    """
-                    <style>
-                    .dataframe thead th {
-                        text-align: center;
-                    }
-                    </style>
-                    """, unsafe_allow_html=True)
                 st.success("Klasifikasi selesai!")
                 st.dataframe(df[["Text", "Label"]], use_container_width=True)
-                
+
                 # Pie Chart untuk Distribusi Label
                 st.subheader("Distribusi Label")
                 label_counts = df["Label"].value_counts().reset_index()
@@ -470,9 +461,7 @@ elif page == "Explorer":
                         Frekuensi="count()", groupby=["Panjang Karakter", "Label"]
                     )
                     .mark_bar()
-                    .encode(
-                        x="Panjang Karakter:Q", y="Frekuensi:Q", color="Label:N"
-                    )
+                    .encode(x="Panjang Karakter:Q", y="Frekuensi:Q", color="Label:N")
                     .properties(width=600, height=400, title="Histogram")
                 )
 
@@ -1022,7 +1011,10 @@ elif page == "Explorer":
                     )
 
                     st.success("Crawling dan klasifikasi selesai!")
-                    st.dataframe(df[["Text", "URL", "Username", "Label"]], use_container_width=True)
+                    st.dataframe(
+                        df[["Text", "URL", "Username", "Label"]],
+                        use_container_width=True,
+                    )
                     # Pie Chart untuk Distribusi Label
                     st.subheader("Distribusi Label")
                     label_counts = df["Label"].value_counts().reset_index()
@@ -1257,7 +1249,9 @@ elif page == "Explorer":
                     )
 
                     st.success("Crawling dan klasifikasi selesai!")
-                    st.dataframe(df[["Text", "Username", "Label"]], use_container_width=True)
+                    st.dataframe(
+                        df[["Text", "Username", "Label"]], use_container_width=True
+                    )
 
                     # Pie Chart untuk Distribusi Label
                     st.subheader("Distribusi Label")
@@ -1516,7 +1510,10 @@ elif page == "Explorer":
                     )
 
                     st.success("Crawling dan klasifikasi selesai!")
-                    st.dataframe(df[["Text", "URL", "Username", "Label"]], use_container_width=True)
+                    st.dataframe(
+                        df[["Text", "URL", "Username", "Label"]],
+                        use_container_width=True,
+                    )
 
                     # Pie Chart untuk Distribusi Label
                     st.subheader("Distribusi Label")
@@ -1766,7 +1763,10 @@ elif page == "Explorer":
                     )
 
                     st.success("Crawling dan klasifikasi selesai!")
-                    st.dataframe(df[["Text", "URL", "Username", "Label"]], use_container_width=True)
+                    st.dataframe(
+                        df[["Text", "URL", "Username", "Label"]],
+                        use_container_width=True,
+                    )
 
                     # Pie Chart untuk Distribusi Label
                     st.subheader("Distribusi Label")
