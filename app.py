@@ -257,7 +257,7 @@ elif page == "Explorer":
             "Aplikasi ini memungkinkan Anda untuk melakukan crawling unggahan di Facebook dan mengklasifikasikannya menggunakan model SVM."
         )
 
-        APIFY_TOKEN = os.getenv("APIFY_TOKEN_FACEBOOK")
+        APIFY_TOKEN = os.getenv("APIFY_TOKEN")
         client = ApifyClient(APIFY_TOKEN)
 
         from selenium import webdriver
@@ -822,7 +822,7 @@ elif page == "Explorer":
             "Aplikasi ini memungkinkan Anda untuk melakukan crawling unggahan atau komentar di Instagram dan mengklasifikasikannya menggunakan model SVM."
         )
 
-        APIFY_TOKEN = os.getenv("APIFY_TOKEN_INSTAGRAM")
+        APIFY_TOKEN = os.getenv("APIFY_TOKEN")
         client = ApifyClient(APIFY_TOKEN)
 
         # Add new input for choice
