@@ -99,8 +99,10 @@ elif page == "Explorer":
     explorer_option = st.selectbox(
         "Pilih Explorer:", ("Plain Text", "Facebook", "Instagram", "X")
     )
-    
+
     st.divider()
+
+    model_path = "svm_model.pkl"
 
     slang_df = pd.read_csv("Kata_Baku_Final.csv")
     slang_dict = dict(zip(slang_df.iloc[:, 0], slang_df.iloc[:, 1]))
@@ -112,7 +114,7 @@ elif page == "Explorer":
         text = str(text).lower()
         text = re.sub(r"(?:\@|http?\://|https?\://|www)\S+", "", text)
         text = re.sub(r"@[^\s]+", "", text)
-        text = re.sub(r"#[^\s]+", "", text)
+        # text = re.sub(r"#[^\s]+", "", text)
         text = re.sub(r"<.*?>", " ", text)
         text = re.sub(r"[^\w\s]", " ", text)
         text = re.sub(r"[^\x00-\x7F]+", " ", text)
@@ -223,7 +225,7 @@ elif page == "Explorer":
                 df.to_csv(file_path, index=False)
 
             # Klasifikasi menggunakan model SVM
-            model_path = "svm_model.pkl"  # Ganti dengan path model Anda
+
             try:
                 model = joblib.load(model_path)
             except FileNotFoundError:
@@ -337,6 +339,7 @@ elif page == "Explorer":
                     ".x1iorvi4.x1pi30zi.x1swvt13.xjkvuk6",
                     ".x1iorvi4.x1pi30zi.x1l90r2v.x1swvt13",
                     ".x1swvt13.x1pi30zi.xexx8yu.x18d9i69",
+                    ".x1yx25j4.x13crsa5.x6x52a7.x1rxj1xn.xxpdul3",
                 ]
 
                 last_height = driver.execute_script("return document.body.scrollHeight")
@@ -404,6 +407,8 @@ elif page == "Explorer":
                 )
             if not username:
                 st.error("Username Facebook tidak boleh kosong.")
+            elif " " in username:
+                st.error("Username Facebook tidak boleh mengandung spasi.")
             elif resultsLimit is None:
                 st.error("Batas maksimum unggahan tidak boleh kosong.")
             else:
@@ -432,7 +437,7 @@ elif page == "Explorer":
                         df.to_csv(file_path, index=False)
 
                     # Klasifikasi menggunakan model SVM
-                    model_path = "svm_model.pkl"  # Ganti dengan path model Anda
+
                     try:
                         model = joblib.load(model_path)
                     except FileNotFoundError:
@@ -541,6 +546,7 @@ elif page == "Explorer":
                     ".x1iorvi4.x1pi30zi.x1swvt13.xjkvuk6",
                     ".x1iorvi4.x1pi30zi.x1l90r2v.x1swvt13",
                     ".x1swvt13.x1pi30zi.xexx8yu.x18d9i69",
+                    ".x1yx25j4.x13crsa5.x6x52a7.x1rxj1xn.xxpdul3",
                 ]
 
                 last_height = driver.execute_script("return document.body.scrollHeight")
@@ -650,94 +656,102 @@ elif page == "Explorer":
                     "https://www.facebook.com/groups/",
                     "https://m.facebook.com/groups/",
                     "https://mbasic.facebook.com/groups/",
+                    "https://facebook.com/groups/",
+                    "https://web.facebook.com/groups/",
                 ]
+                valid_prefix = False
                 for prefix in prefixes:
                     if group_url.startswith(prefix):
                         group_url = group_url.replace(
                             prefix, "https://web.facebook.com/groups/"
                         )
+                        valid_prefix = True
                         break
-                if "?" in group_url:
-                    group_url = group_url.split("?")[0]
-                elif not group_url.startswith("https://web.facebook.com/groups/"):
-                    st.error(
-                        "URL tidak valid. URL harus diawali dengan https://web.facebook.com/groups/."
-                    )
-                elif len(
-                    group_url.split("https://web.facebook.com/groups/")[1].rstrip("/")
-                ) not in [15, 16]:
-                    st.error(
-                        "URL tidak valid. Periksa kembali bagian setelah https://web.facebook.com/groups/."
-                    )
-                elif resultsLimit is None:
-                    st.error("Batas maksimum unggahan tidak boleh kosong.")
+                if not valid_prefix:
+                    st.error("URL grup Facebook tidak valid.")
                 else:
-                    if st.button("Crawl dan Klasifikasi"):
-                        # Prepare the Actor input for Facebook group
+                    if "?" in group_url:
+                        group_url = group_url.split("?")[0]
+                    group_id = group_url.split("https://web.facebook.com/groups/")[
+                        1
+                    ].rstrip("/")
+                    if group_id == "":
+                        st.error(
+                            "URL grup tidak boleh kosong setelah 'https://web.facebook.com/groups/'."
+                        )
+                    elif resultsLimit is None:
+                        st.error("Batas maksimum unggahan tidak boleh kosong.")
+                    else:
+                        if st.button("Crawl dan Klasifikasi"):
+                            # Prepare the Actor input for Facebook group
 
-                        with st.spinner("Crawling data..."):
-                            filename = main(group_url, resultsLimit)
+                            with st.spinner("Crawling data..."):
+                                filename = main(group_url, resultsLimit)
 
-                        # Load data
-                        file_path = filename
-                        if file_path is not None:
-                            try:
-                                df = pd.read_csv(file_path, encoding="latin1")
-                            except pd.errors.EmptyDataError:
+                            # Load data
+                            file_path = filename
+                            if file_path is not None:
+                                try:
+                                    df = pd.read_csv(file_path, encoding="latin1")
+                                except pd.errors.EmptyDataError:
+                                    st.error("Unggahan tidak ditemukan.")
+                                    st.stop()
+                            else:
                                 st.error("Unggahan tidak ditemukan.")
                                 st.stop()
-                        else:
-                            st.error("Unggahan tidak ditemukan.")
-                            st.stop()
 
-                        with st.spinner("Pre-processing..."):
-                            df["Processed"] = df["text"].apply(cleaning)
-                            df["Processed"] = df["Processed"].apply(normalize_slang)
-                            df["Processed"] = df["Processed"].apply(remove_stopwords)
-                            df["Processed"] = df["Processed"].apply(stemming)
+                            with st.spinner("Pre-processing..."):
+                                df["Processed"] = df["text"].apply(cleaning)
+                                df["Processed"] = df["Processed"].apply(normalize_slang)
+                                df["Processed"] = df["Processed"].apply(
+                                    remove_stopwords
+                                )
+                                df["Processed"] = df["Processed"].apply(stemming)
 
-                            df.to_csv(file_path, index=False)
+                                df.to_csv(file_path, index=False)
 
-                        # Klasifikasi menggunakan model SVM
-                        model_path = "svm_model.pkl"  # Ganti dengan path model Anda
-                        try:
-                            model = joblib.load(model_path)
-                        except FileNotFoundError:
-                            st.error("Model tidak ditemukan.")
-                            st.stop()
+                            # Klasifikasi menggunakan model SVM
 
-                        X = df[
-                            "Processed"
-                        ]  # Menggunakan kolom 'processed' untuk klasifikasi
-                        with st.spinner("Classifying data..."):
-                            predictions = model.predict(X)
+                            try:
+                                model = joblib.load(model_path)
+                            except FileNotFoundError:
+                                st.error("Model tidak ditemukan.")
+                                st.stop()
 
-                        # Simpan hasil klasifikasi ke CSV baru
-                        df["label"] = predictions
-                        df = df.rename(
-                            columns={
-                                "label": "Label",
-                                "text": "Text",
-                                "name": "Name",
-                                "username": "Username",
-                            }
-                        )
+                            X = df[
+                                "Processed"
+                            ]  # Menggunakan kolom 'processed' untuk klasifikasi
+                            with st.spinner("Classifying data..."):
+                                predictions = model.predict(X)
 
-                        # Mengatur ulang index dimulai dari 1
-                        df.index = np.arange(1, len(df) + 1)
+                            # Simpan hasil klasifikasi ke CSV baru
+                            df["label"] = predictions
+                            df = df.rename(
+                                columns={
+                                    "label": "Label",
+                                    "text": "Text",
+                                    "name": "Name",
+                                    "username": "Username",
+                                }
+                            )
 
-                        output_filename = f"{filename.replace('.csv', '')}_predicted"
-                        df[["Text", "Name", "Username", "Label"]].to_csv(
-                            f"{output_filename}.csv", index=False
-                        )
+                            # Mengatur ulang index dimulai dari 1
+                            df.index = np.arange(1, len(df) + 1)
 
-                        st.success("Crawling dan klasifikasi selesai!")
-                        st.dataframe(
-                            df[["Text", "Name", "Username", "Label"]],
-                            use_container_width=True,
-                        )
+                            output_filename = (
+                                f"{filename.replace('.csv', '')}_predicted"
+                            )
+                            df[["Text", "Name", "Username", "Label"]].to_csv(
+                                f"{output_filename}.csv", index=False
+                            )
 
-                        visualize_data(df)
+                            st.success("Crawling dan klasifikasi selesai!")
+                            st.dataframe(
+                                df[["Text", "Name", "Username", "Label"]],
+                                use_container_width=True,
+                            )
+
+                            visualize_data(df)
 
         # elif choice == "Unggahan dengan Hashtag":
         #     col1, col2 = st.columns(2)
@@ -852,6 +866,8 @@ elif page == "Explorer":
 
             if not username:
                 st.error("Username Instagram tidak boleh kosong.")
+            elif " " in username:
+                st.error("Username Instagram tidak boleh mengandung spasi.")
             elif resultsLimit is None:
                 st.error("Batas maksimum unggahan tidak boleh kosong.")
             else:
@@ -896,7 +912,7 @@ elif page == "Explorer":
                         df.to_csv(file_path, index=False)
 
                     # Klasifikasi menggunakan model SVM
-                    model_path = "svm_model.pkl"  # Ganti dengan path model Anda
+
                     try:
                         model = joblib.load(model_path)
                     except FileNotFoundError:
@@ -995,7 +1011,7 @@ elif page == "Explorer":
                         df.to_csv(file_path, index=False)
 
                     # Klasifikasi menggunakan model SVM
-                    model_path = "svm_model.pkl"  # Ganti dengan path model Anda
+
                     try:
                         model = joblib.load(model_path)
                     except FileNotFoundError:
@@ -1044,103 +1060,123 @@ elif page == "Explorer":
             resultsLimit = st.number_input(
                 "Masukkan batas maksimum komentar:", min_value=1, value=20
             )
-
             if not directUrls:
                 st.error("URL tidak boleh kosong.")
-            elif "?" in directUrls:
-                directUrls = directUrls.split("?")[0]
-            elif not directUrls.startswith("https://www.instagram.com/p/"):
-                st.error(
-                    "URL tidak valid. URL harus diawali dengan https://www.instagram.com/p/."
-                )
-            elif (
-                len(directUrls.split("https://www.instagram.com/p/")[1].rstrip("/"))
-                != 11
-            ):
-                st.error(
-                    "URL tidak valid. Periksa kembali bagian setelah https://www.instagram.com/p/."
-                )
-            elif resultsLimit is None:
-                st.error("Batas maksimum unggahan tidak boleh kosong.")
             else:
-                if st.button("Crawl dan Klasifikasi"):
-                    # Prepare the Actor input for hashtag
-                    run_input_post = {
-                        "directUrls": [directUrls],
-                        "resultsLimit": resultsLimit,
-                    }
+                prefixes = [
+                    "https://instagram.com/p/",
+                    "https://www.instagram.com/p/",
+                ]
+                valid_prefix = False
+                for prefix in prefixes:
+                    if directUrls.startswith(prefix):
+                        directUrls = directUrls.replace(
+                            prefix, "https://www.instagram.com/p/"
+                        )
+                        valid_prefix = True
+                        break
+                if not valid_prefix:
+                    st.error("URL unggahan Instagram tidak valid.")
+                else:
+                    if "?" in directUrls:
+                        directUrls = directUrls.split("?")[0]
 
-                    with st.spinner("Crawling data..."):
-                        # Run the Actor and wait for it to finish
-                        run_comment = client.actor("SbK00X0JYCPblD2wp").call(
-                            run_input=run_input_post
+                    if "?" in directUrls:
+                        directUrls = directUrls.split("?")[0]
+                    post_id = directUrls.split("https://www.instagram.com/p/")[
+                        1
+                    ].rstrip("/")
+                    if post_id == "":
+                        st.error(
+                            "URL grup tidak boleh kosong setelah 'https://www.instagram.com/p/'."
                         )
 
-                    # Fetch and print Actor results from the run's dataset (if there are any)
-                    data = []
-                    for item in client.dataset(
-                        run_comment["defaultDatasetId"]
-                    ).iterate_items():
-                        data.append(item)
-                    df = pd.DataFrame(data)
+                    elif resultsLimit is None:
+                        st.error("Batas maksimum unggahan tidak boleh kosong.")
+                    else:
+                        if st.button("Crawl dan Klasifikasi"):
+                            # Prepare the Actor input for hashtag
+                            run_input_post = {
+                                "directUrls": [directUrls],
+                                "resultsLimit": resultsLimit,
+                            }
 
-                    filename = f"instagram-data/ie_komentar_{timestamp}.csv"
-                    df.to_csv(filename, index=False)
+                            with st.spinner("Crawling data..."):
+                                # Run the Actor and wait for it to finish
+                                run_comment = client.actor("SbK00X0JYCPblD2wp").call(
+                                    run_input=run_input_post
+                                )
 
-                    # Load data
-                    file_path = filename
-                    try:
-                        df = pd.read_csv(file_path, encoding="latin1")
-                    except pd.errors.EmptyDataError:
-                        st.error("Unggahan tidak ditemukan.")
-                        st.stop()
+                            # Fetch and print Actor results from the run's dataset (if there are any)
+                            data = []
+                            for item in client.dataset(
+                                run_comment["defaultDatasetId"]
+                            ).iterate_items():
+                                data.append(item)
+                            df = pd.DataFrame(data)
 
-                    with st.spinner("Pre-processing..."):
-                        df["Processed"] = df["text"].apply(cleaning)
-                        df["Processed"] = df["Processed"].apply(normalize_slang)
-                        df["Processed"] = df["Processed"].apply(remove_stopwords)
-                        df["Processed"] = df["Processed"].apply(stemming)
+                            filename = f"instagram-data/ie_komentar_{timestamp}.csv"
+                            df.to_csv(filename, index=False)
 
-                        df.to_csv(file_path, index=False)
+                            # Load data
+                            file_path = filename
+                            try:
+                                df = pd.read_csv(file_path, encoding="latin1")
+                            except pd.errors.EmptyDataError:
+                                st.error("Unggahan tidak ditemukan.")
+                                st.stop()
 
-                    # Klasifikasi menggunakan model SVM
-                    model_path = "svm_model.pkl"  # Ganti dengan path model Anda
-                    try:
-                        model = joblib.load(model_path)
-                    except FileNotFoundError:
-                        st.error("Model tidak ditemukan.")
-                        st.stop()
+                            with st.spinner("Pre-processing..."):
+                                df["Processed"] = df["text"].apply(cleaning)
+                                df["Processed"] = df["Processed"].apply(normalize_slang)
+                                df["Processed"] = df["Processed"].apply(
+                                    remove_stopwords
+                                )
+                                df["Processed"] = df["Processed"].apply(stemming)
 
-                    X = df[
-                        "Processed"
-                    ]  # Menggunakan kolom 'processed' untuk klasifikasi
-                    with st.spinner("Classifying data..."):
-                        predictions = model.predict(X)
+                                df.to_csv(file_path, index=False)
 
-                    # Simpan hasil klasifikasi ke CSV baru
-                    df["label"] = predictions
-                    df = df.rename(
-                        columns={
-                            "text": "Text",
-                            "ownerUsername": "Username",
-                            "label": "Label",
-                        }
-                    )
+                            # Klasifikasi menggunakan model SVM
 
-                    # Mengatur ulang index dimulai dari 1
-                    df.index = np.arange(1, len(df) + 1)
+                            try:
+                                model = joblib.load(model_path)
+                            except FileNotFoundError:
+                                st.error("Model tidak ditemukan.")
+                                st.stop()
 
-                    output_filename = f"{filename.replace('.csv', '')}_predicted"
-                    df[["Text", "Username", "Label"]].to_csv(
-                        f"{output_filename}.csv", index=False
-                    )
+                            X = df[
+                                "Processed"
+                            ]  # Menggunakan kolom 'processed' untuk klasifikasi
+                            with st.spinner("Classifying data..."):
+                                predictions = model.predict(X)
 
-                    st.success("Crawling dan klasifikasi selesai!")
-                    st.dataframe(
-                        df[["Text", "Username", "Label"]], use_container_width=True
-                    )
+                            # Simpan hasil klasifikasi ke CSV baru
+                            df["label"] = predictions
+                            df = df.rename(
+                                columns={
+                                    "text": "Text",
+                                    "ownerUsername": "Username",
+                                    "label": "Label",
+                                }
+                            )
 
-                    visualize_data(df)
+                            # Mengatur ulang index dimulai dari 1
+                            df.index = np.arange(1, len(df) + 1)
+
+                            output_filename = (
+                                f"{filename.replace('.csv', '')}_predicted"
+                            )
+                            df[["Text", "Username", "Label"]].to_csv(
+                                f"{output_filename}.csv", index=False
+                            )
+
+                            st.success("Crawling dan klasifikasi selesai!")
+                            st.dataframe(
+                                df[["Text", "Username", "Label"]],
+                                use_container_width=True,
+                            )
+
+                            visualize_data(df)
 
     elif explorer_option == "X":
         st.header("X Explorer")
@@ -1177,6 +1213,8 @@ elif page == "Explorer":
 
             if not search_keyword:
                 st.error("Username X tidak boleh kosong.")
+            elif " " in search_keyword:
+                st.error("Username X tidak boleh mengandung spasi.")
             elif limit is None:
                 st.error("Batas maksimum unggahan tidak boleh kosong.")
             elif start_date is None or end_date is None:
@@ -1235,7 +1273,7 @@ elif page == "Explorer":
                         df.to_csv(file_path, index=False)
 
                     # Klasifikasi menggunakan model SVM
-                    model_path = "svm_model.pkl"  # Ganti dengan path model Anda
+
                     try:
                         model = joblib.load(model_path)
                     except FileNotFoundError:
@@ -1311,7 +1349,7 @@ elif page == "Explorer":
                         f"{search_keyword} lang:id since:{start_date} until:{end_date}"
                     )
 
-                    filename = f"xe_{search_keyword}_{timestamp}.csv"
+                    filename = f"xe_{search_keyword.replace(' ', '_')}_{timestamp}.csv"
 
                     # Crawling data
                     with st.spinner("Crawling data..."):
@@ -1357,7 +1395,7 @@ elif page == "Explorer":
                         df.to_csv(file_path, index=False)
 
                     # Klasifikasi menggunakan model SVM
-                    model_path = "svm_model.pkl"  # Ganti dengan path model Anda
+
                     try:
                         model = joblib.load(model_path)
                     except FileNotFoundError:
