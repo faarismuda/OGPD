@@ -2,6 +2,7 @@
 .env
 
 # Data files
+__pycache__
 tweets-data/
 instagram-data/
 facebook-data/

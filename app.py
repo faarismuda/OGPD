@@ -6,6 +6,7 @@ import re
 import subprocess
 
 from visualizations import visualize_data
+from recommendations import recommendations
 
 import joblib
 import numpy as np
@@ -94,13 +95,11 @@ if page == "OGPD":
 
 
 elif page == "Explorer":
+    
     st.title("Explorer")
-
     explorer_option = st.selectbox(
         "Pilih Explorer:", ("Plain Text", "Facebook", "Instagram", "X")
     )
-
-    st.divider()
 
     model_path = "svm_model.pkl"
 
@@ -149,13 +148,14 @@ elif page == "Explorer":
         directory = "plain-text-data"
         if not os.path.exists(directory):
             os.makedirs(directory)
-
+        
+        container = st.container(border=True)
         # Pilihan input: Teks atau CSV
-        input_type = st.radio("Pilih jenis input:", ("Teks", "Unggah File"))
+        input_type = container.radio("Pilih jenis input:", ("Teks", "Unggah File"))
 
         if input_type == "Teks":
             # Inputan teks
-            user_input = st.text_area(
+            user_input = container.text_area(
                 "Masukkan teks:",
                 value="Judi online merupakan tindakan yang tidak bermoral dan merugikan masyarakat.",
             )
@@ -172,7 +172,7 @@ elif page == "Explorer":
 
         elif input_type == "Unggah File":
             # Unggah file CSV
-            uploaded_file = st.file_uploader("Unggah file", type=["csv", "xlsx", "xls"])
+            uploaded_file = container.file_uploader("Unggah file", type=["csv", "xlsx", "xls"])
 
             if uploaded_file is not None:
                 file_name = uploaded_file.name
@@ -190,13 +190,13 @@ elif page == "Explorer":
 
                 # Mengatur ulang index dimulai dari 1
                 df_uploaded.index = np.arange(1, len(df_uploaded) + 1)
-                st.write("Data dari file yang diunggah:")
-                st.dataframe(df_uploaded["Text"], use_container_width=True)
+                container.caption("Data dari file yang diunggah:")
+                container.dataframe(df_uploaded["Text"], use_container_width=True)
             else:
-                st.info("Pastikan file CSV atau Excel memiliki header atau column.")
+                container.info("Pastikan file CSV atau Excel memiliki header atau column.")
 
         # Tombol untuk memulai klasifikasi
-        if st.button("Klasifikasi"):
+        if container.button("Klasifikasi"):
             if input_type == "Teks" and lines:
                 df = df_input
             elif input_type == "Unggah File" and uploaded_file is not None:
@@ -258,6 +258,8 @@ elif page == "Explorer":
         st.write(
             "Aplikasi ini memungkinkan Anda untuk melakukan crawling unggahan di Facebook dan mengklasifikasikannya menggunakan model SVM."
         )
+        
+        container = st.container(border=True)
 
         APIFY_TOKEN = os.getenv("APIFY_TOKEN")
         client = ApifyClient(APIFY_TOKEN)
@@ -271,7 +273,7 @@ elif page == "Explorer":
         from selenium.webdriver.support import expected_conditions as EC
         from bs4 import BeautifulSoup
 
-        choice = st.selectbox(
+        choice = container.selectbox(
             "Pilih opsi:",
             options=[
                 "Unggahan Pribadi atau Halaman",
@@ -396,7 +398,7 @@ elif page == "Explorer":
                 finally:
                     driver.quit()
 
-            col1, col2 = st.columns(2)
+            col1, col2 = container.columns(2)
             with col1:
                 username = st.text_input(
                     "Masukkan username Facebook:", value="facebook"
@@ -411,8 +413,10 @@ elif page == "Explorer":
                 st.error("Username Facebook tidak boleh mengandung spasi.")
             elif resultsLimit is None:
                 st.error("Batas maksimum unggahan tidak boleh kosong.")
+            elif resultsLimit < 20:
+                st.error("Batas unggahan minimal adalah 20.")
             else:
-                if st.button("Crawl dan Klasifikasi"):
+                if container.button("Crawl dan Klasifikasi"):
                     with st.spinner("Crawling data..."):
                         filename = main(username, resultsLimit)
 
@@ -637,7 +641,7 @@ elif page == "Explorer":
                 finally:
                     driver.quit()
 
-            col1, col2 = st.columns(2)
+            col1, col2 = container.columns(2)
             with col1:
                 group_url = st.text_input(
                     "Masukkan URL grup Facebook:",
@@ -681,8 +685,10 @@ elif page == "Explorer":
                         )
                     elif resultsLimit is None:
                         st.error("Batas maksimum unggahan tidak boleh kosong.")
+                    elif resultsLimit < 20:
+                        st.error("Batas unggahan minimal adalah 20.")
                     else:
-                        if st.button("Crawl dan Klasifikasi"):
+                        if container.button("Crawl dan Klasifikasi"):
                             # Prepare the Actor input for Facebook group
 
                             with st.spinner("Crawling data..."):
@@ -835,12 +841,14 @@ elif page == "Explorer":
         st.write(
             "Aplikasi ini memungkinkan Anda untuk melakukan crawling unggahan atau komentar di Instagram dan mengklasifikasikannya menggunakan model SVM."
         )
+        
+        container = st.container(border=True)
 
         APIFY_TOKEN = os.getenv("APIFY_TOKEN")
         client = ApifyClient(APIFY_TOKEN)
 
         # Add new input for choice
-        choice = st.selectbox(
+        choice = container.selectbox(
             "Pilih jenis crawling:",
             options=[
                 "Unggahan Pribadi",
@@ -854,7 +862,7 @@ elif page == "Explorer":
             os.makedirs(directory)
 
         if choice == "Unggahan Pribadi":
-            col1, col2 = st.columns(2)
+            col1, col2 = container.columns(2)
             with col1:
                 username = st.text_input(
                     "Masukkan username Instagram:", value="rpl_upi"
@@ -868,10 +876,12 @@ elif page == "Explorer":
                 st.error("Username Instagram tidak boleh kosong.")
             elif " " in username:
                 st.error("Username Instagram tidak boleh mengandung spasi.")
+            elif resultsLimit < 1:
+                st.error("Batas unggahan minimal adalah 1.")
             elif resultsLimit is None:
                 st.error("Batas maksimum unggahan tidak boleh kosong.")
             else:
-                if st.button("Crawl dan Klasifikasi"):
+                if container.button("Crawl dan Klasifikasi"):
                     # Prepare the Actor input for Instagram account
                     run_input_account = {
                         "username": [username],
@@ -949,10 +959,9 @@ elif page == "Explorer":
                     visualize_data(df)
 
         elif choice == "Unggahan dengan Hashtag":
-            # Add new input for hashtag
-            hashtags = st.text_input("Masukkan hashtag:", value="judi")
+            hashtags = container.text_input("Masukkan hashtag:", value="judi")
 
-            col1, col2 = st.columns(2)
+            col1, col2 = container.columns(2)
             with col1:
                 resultsLimit = st.number_input(
                     "Masukkan batas maksimum unggahan:", min_value=1, value=20
@@ -961,15 +970,17 @@ elif page == "Explorer":
                 onlyPostsNewerThan = st.date_input(
                     "Hanya unggahan sejak tanggal:", value=yesterday
                 )
-
+            recommendations()
             if not hashtags:
                 st.error("Hashtag tidak boleh kosong.")
             elif resultsLimit is None:
                 st.error("Batas maksimum unggahan tidak boleh kosong.")
+            elif resultsLimit < 1:
+                st.error("Batas unggahan minimal adalah 1.")
             elif onlyPostsNewerThan is None:
                 st.error("Tanggal tidak boleh kosong.")
             else:
-                if st.button("Crawl dan Klasifikasi"):
+                if container.button("Crawl dan Klasifikasi"):
                     # Prepare the Actor input for hashtag
                     run_input_hashtag = {
                         "hashtags": [hashtags],
@@ -1052,12 +1063,12 @@ elif page == "Explorer":
 
         elif choice == "Komentar dalam Unggahan":
             # Add new input for hashtag
-            directUrls = st.text_input(
+            directUrls = container.text_input(
                 "Masukkan link unggahan Instagram:",
                 value="https://www.instagram.com/p/C8Y52QPPmib/",
             )
             directUrls = directUrls.split("?")[0]
-            resultsLimit = st.number_input(
+            resultsLimit = container.number_input(
                 "Masukkan batas maksimum komentar:", min_value=1, value=20
             )
             if not directUrls:
@@ -1080,21 +1091,20 @@ elif page == "Explorer":
                 else:
                     if "?" in directUrls:
                         directUrls = directUrls.split("?")[0]
-
-                    if "?" in directUrls:
-                        directUrls = directUrls.split("?")[0]
                     post_id = directUrls.split("https://www.instagram.com/p/")[
                         1
                     ].rstrip("/")
                     if post_id == "":
                         st.error(
-                            "URL grup tidak boleh kosong setelah 'https://www.instagram.com/p/'."
+                            "URL unggahan tidak boleh kosong setelah 'https://www.instagram.com/p/'."
                         )
 
                     elif resultsLimit is None:
                         st.error("Batas maksimum unggahan tidak boleh kosong.")
+                    elif resultsLimit < 1:
+                        st.error("Batas unggahan minimal adalah 1.")
                     else:
-                        if st.button("Crawl dan Klasifikasi"):
+                        if container.button("Crawl dan Klasifikasi"):
                             # Prepare the Actor input for hashtag
                             run_input_post = {
                                 "directUrls": [directUrls],
@@ -1183,17 +1193,19 @@ elif page == "Explorer":
         st.write(
             "Aplikasi ini memungkinkan Anda untuk melakukan crawling unggahan X dan mengklasifikasikannya menggunakan model SVM."
         )
+        
+        container = st.container(border=True)
 
         x_auth_token = os.getenv("X_AUTH_TOKEN")
 
-        x_option = st.selectbox(
+        x_option = container.selectbox(
             "Pilih opsi:",
             ("Unggahan Pribadi", "Pencari Unggahan"),
         )
 
         if x_option == "Unggahan Pribadi":
             # Tambahkan kode untuk menangani unggahan pribadi di sini
-            col1, col2 = st.columns(2)
+            col1, col2 = container.columns(2)
             with col1:
                 search_keyword = st.text_input(
                     "Masukkan username X:", value="KomisiJudi"
@@ -1203,7 +1215,7 @@ elif page == "Explorer":
                     "Masukkan batas maksimum unggahan:", min_value=20, value=200
                 )
 
-            col3, col4 = st.columns(2)
+            col3, col4 = container.columns(2)
             with col3:
                 start_date = st.date_input("Hanya unggahan sejak tanggal:", value=today)
             with col4:
@@ -1217,12 +1229,14 @@ elif page == "Explorer":
                 st.error("Username X tidak boleh mengandung spasi.")
             elif limit is None:
                 st.error("Batas maksimum unggahan tidak boleh kosong.")
+            elif limit < 20:
+                st.error("Batas unggahan minimal adalah 20.")
             elif start_date is None or end_date is None:
                 st.error("Tanggal tidak boleh kosong.")
             elif start_date > end_date:
                 st.error("Silakan masukkan rentang tanggal yang valid.")
             else:
-                if st.button("Crawl dan Klasifikasi"):
+                if container.button("Crawl dan Klasifikasi"):
                     # Format search keyword
                     search_keyword_formatted = (
                         f"from:{search_keyword} since:{start_date} until:{end_date}"
@@ -1315,7 +1329,7 @@ elif page == "Explorer":
 
         elif x_option == "Pencari Unggahan":
             # Tambahkan kode untuk menangani pencarian unggahan di sini
-            col1, col2 = st.columns(2)
+            col1, col2 = container.columns(2)
             with col1:
                 search_keyword = st.text_input(
                     "Masukkan kata kunci pencarian:", value="judi"
@@ -1325,17 +1339,20 @@ elif page == "Explorer":
                     "Masukkan batas maksimum unggahan:", min_value=20, value=200
                 )
 
-            col3, col4 = st.columns(2)
+            col3, col4 = container.columns(2)
             with col3:
                 start_date = st.date_input("Hanya unggahan sejak tanggal:", value=today)
             with col4:
                 end_date = st.date_input(
                     "Hanya unggahan sampai tanggal:", value=tomorrow
                 )
+            recommendations()
             if not search_keyword:
                 st.error("Kata kunci pencarian tidak boleh kosong.")
             elif limit is None:
                 st.error("Batas maksimum unggahan tidak boleh kosong.")
+            elif limit < 20:
+                st.error("Batas unggahan minimal adalah 20.")
             elif start_date is None:
                 st.error("Tanggal mulai tidak boleh kosong.")
             elif end_date is None:
@@ -1343,7 +1360,7 @@ elif page == "Explorer":
             elif start_date > end_date:
                 st.error("Tanggal mulai tidak boleh lebih besar dari tanggal akhir.")
             else:
-                if st.button("Crawl dan Klasifikasi"):
+                if container.button("Crawl dan Klasifikasi"):
                     # Format search keyword
                     search_keyword_formatted = (
                         f"{search_keyword} lang:id since:{start_date} until:{end_date}"
