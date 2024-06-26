@@ -213,9 +213,13 @@ elif page == "Explorer":
 
             # Load data
             file_path = filename
-            try:
-                df = pd.read_csv(file_path, encoding="latin1")
-            except pd.errors.EmptyDataError:
+            if file_path is not None:
+                try:
+                    df = pd.read_csv(file_path, encoding="latin1")
+                except pd.errors.EmptyDataError:
+                    st.error("Unggahan tidak ditemukan.")
+                    st.stop()
+            else:
                 st.error("Unggahan tidak ditemukan.")
                 st.stop()
 
@@ -910,12 +914,16 @@ elif page == "Explorer":
 
                     filename = f"instagram-data/ie_unggahan_{username}_{timestamp}.csv"
                     df.to_csv(filename, index=False)
-
+                        
                     # Load data
                     file_path = filename
-                    try:
-                        df = pd.read_csv(file_path, encoding="latin1")
-                    except pd.errors.EmptyDataError:
+                    if file_path is not None:
+                        try:
+                            df = pd.read_csv(file_path, encoding="latin1")
+                        except pd.errors.EmptyDataError:
+                            st.error("Unggahan tidak ditemukan.")
+                            st.stop()
+                    else:
                         st.error("Unggahan tidak ditemukan.")
                         st.stop()
 
@@ -1017,9 +1025,13 @@ elif page == "Explorer":
 
                     # Load data
                     file_path = filename
-                    try:
-                        df = pd.read_csv(file_path, encoding="latin1")
-                    except pd.errors.EmptyDataError:
+                    if file_path is not None:
+                        try:
+                            df = pd.read_csv(file_path, encoding="latin1")
+                        except pd.errors.EmptyDataError:
+                            st.error("Unggahan tidak ditemukan.")
+                            st.stop()
+                    else:
                         st.error("Unggahan tidak ditemukan.")
                         st.stop()
 
@@ -1141,9 +1153,13 @@ elif page == "Explorer":
 
                             # Load data
                             file_path = filename
-                            try:
-                                df = pd.read_csv(file_path, encoding="latin1")
-                            except pd.errors.EmptyDataError:
+                            if file_path is not None:
+                                try:
+                                    df = pd.read_csv(file_path, encoding="latin1")
+                                except pd.errors.EmptyDataError:
+                                    st.error("Unggahan tidak ditemukan.")
+                                    st.stop()
+                            else:
                                 st.error("Unggahan tidak ditemukan.")
                                 st.stop()
 
@@ -1273,7 +1289,7 @@ elif page == "Explorer":
                                 print(line)
                                 if (
                                     "No more tweets found" in line
-                                    or "done scrolling" in line
+                                    or "done scrolling" in line or "Total tweets saved: 0" in line
                                 ):
                                     print(
                                         "No more tweets found or done scrolling, stopping..."
@@ -1284,9 +1300,13 @@ elif page == "Explorer":
 
                     # Load data
                     file_path = f"tweets-data/{filename}"
-                    try:
-                        df = pd.read_csv(file_path, encoding="latin1")
-                    except pd.errors.EmptyDataError:
+                    if file_path is not None:
+                        try:
+                            df = pd.read_csv(file_path, encoding="latin1")
+                        except pd.errors.EmptyDataError:
+                            st.error("Unggahan tidak ditemukan.")
+                            st.stop()
+                    else:
                         st.error("Unggahan tidak ditemukan.")
                         st.stop()
 
@@ -1399,7 +1419,7 @@ elif page == "Explorer":
                                 print(line)
                                 if (
                                     "No more tweets found" in line
-                                    or "done scrolling" in line
+                                    or "done scrolling" in line or "Total tweets saved: 0" in line
                                 ):
                                     print(
                                         "No more tweets found or done scrolling, stopping..."
@@ -1407,12 +1427,16 @@ elif page == "Explorer":
                                     process.terminate()
                                     break
                         rc = process.poll()
-
+                        
                     # Load data
                     file_path = f"tweets-data/{filename}"
-                    try:
-                        df = pd.read_csv(file_path, encoding="latin1")
-                    except pd.errors.EmptyDataError:
+                    if file_path is not None:
+                        try:
+                            df = pd.read_csv(file_path, encoding="latin1")
+                        except pd.errors.EmptyDataError:
+                            st.error("Unggahan tidak ditemukan.")
+                            st.stop()
+                    else:
                         st.error("Unggahan tidak ditemukan.")
                         st.stop()
 
