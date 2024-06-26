@@ -95,13 +95,12 @@ if page == "OGPD":
 
 
 elif page == "Explorer":
-    
     st.title("Explorer")
     explorer_option = st.selectbox(
         "Pilih Explorer:", ("Plain Text", "Facebook", "Instagram", "X")
     )
 
-    model_path = "svm_model.pkl"
+    model_path = "improved_svm_model.pkl"
 
     slang_df = pd.read_csv("Kata_Baku_Final.csv")
     slang_dict = dict(zip(slang_df.iloc[:, 0], slang_df.iloc[:, 1]))
@@ -148,7 +147,7 @@ elif page == "Explorer":
         directory = "plain-text-data"
         if not os.path.exists(directory):
             os.makedirs(directory)
-        
+
         container = st.container(border=True)
         # Pilihan input: Teks atau CSV
         input_type = container.radio("Pilih jenis input:", ("Teks", "Unggah File"))
@@ -172,7 +171,9 @@ elif page == "Explorer":
 
         elif input_type == "Unggah File":
             # Unggah file CSV
-            uploaded_file = container.file_uploader("Unggah file", type=["csv", "xlsx", "xls"])
+            uploaded_file = container.file_uploader(
+                "Unggah file", type=["csv", "xlsx", "xls"]
+            )
 
             if uploaded_file is not None:
                 file_name = uploaded_file.name
@@ -193,7 +194,9 @@ elif page == "Explorer":
                 container.caption("Data dari file yang diunggah:")
                 container.dataframe(df_uploaded["Text"], use_container_width=True)
             else:
-                container.info("Pastikan file CSV atau Excel memiliki header atau column.")
+                container.info(
+                    "Pastikan file CSV atau Excel memiliki header atau column."
+                )
 
         # Tombol untuk memulai klasifikasi
         if container.button("Klasifikasi"):
@@ -258,7 +261,7 @@ elif page == "Explorer":
         st.write(
             "Aplikasi ini memungkinkan Anda untuk melakukan crawling unggahan di Facebook dan mengklasifikasikannya menggunakan model SVM."
         )
-        
+
         container = st.container(border=True)
 
         APIFY_TOKEN = os.getenv("APIFY_TOKEN")
@@ -754,6 +757,9 @@ elif page == "Explorer":
                             st.success("Crawling dan klasifikasi selesai!")
                             st.dataframe(
                                 df[["Text", "Name", "Username", "Label"]],
+                                column_config={
+                                    "Username": st.column_config.LinkColumn()
+                                },
                                 use_container_width=True,
                             )
 
@@ -841,7 +847,7 @@ elif page == "Explorer":
         st.write(
             "Aplikasi ini memungkinkan Anda untuk melakukan crawling unggahan atau komentar di Instagram dan mengklasifikasikannya menggunakan model SVM."
         )
-        
+
         container = st.container(border=True)
 
         APIFY_TOKEN = os.getenv("APIFY_TOKEN")
@@ -954,7 +960,11 @@ elif page == "Explorer":
                     )
 
                     st.success("Crawling dan klasifikasi selesai!")
-                    st.dataframe(df[["Text", "URL", "Label"]], use_container_width=True)
+                    st.dataframe(
+                        df[["Text", "URL", "Label"]],
+                        column_config={"URL": st.column_config.LinkColumn()},
+                        use_container_width=True,
+                    )
 
                     visualize_data(df)
 
@@ -1057,6 +1067,7 @@ elif page == "Explorer":
                     st.success("Crawling dan klasifikasi selesai!")
                     st.dataframe(
                         df[["Text", "URL", "Username", "Label"]],
+                        column_config={"URL": st.column_config.LinkColumn()},
                         use_container_width=True,
                     )
                     visualize_data(df)
@@ -1183,6 +1194,7 @@ elif page == "Explorer":
                             st.success("Crawling dan klasifikasi selesai!")
                             st.dataframe(
                                 df[["Text", "Username", "Label"]],
+                                column_config={"URL": st.column_config.LinkColumn()},
                                 use_container_width=True,
                             )
 
@@ -1193,7 +1205,7 @@ elif page == "Explorer":
         st.write(
             "Aplikasi ini memungkinkan Anda untuk melakukan crawling unggahan X dan mengklasifikasikannya menggunakan model SVM."
         )
-        
+
         container = st.container(border=True)
 
         x_auth_token = os.getenv("X_AUTH_TOKEN")
@@ -1322,6 +1334,7 @@ elif page == "Explorer":
                     st.success("Crawling dan klasifikasi selesai!")
                     st.dataframe(
                         df[["Text", "URL", "Username", "Label"]],
+                        column_config={"URL": st.column_config.LinkColumn()},
                         use_container_width=True,
                     )
 
@@ -1449,6 +1462,7 @@ elif page == "Explorer":
                     st.success("Crawling dan klasifikasi selesai!")
                     st.dataframe(
                         df[["Text", "URL", "Username", "Label"]],
+                        column_config={"URL": st.column_config.LinkColumn()},
                         use_container_width=True,
                     )
 
