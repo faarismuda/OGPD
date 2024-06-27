@@ -1512,11 +1512,14 @@ elif page == "Archieve":
                     formatted_date_time = date_time.strftime("%Y-%m-%d %H:%M:%S")
                     name = parts[2] if len(parts) > 2 else "Unknown"
                     file_path = os.path.join(directory, file)
-                    files_data.append({"File": file, "Name": name, "Date Time": formatted_date_time, "Path": file_path})
+                    files_data.append({"File": file, "Name": name, "Date Time": formatted_date_time, "Path": file_path, "Timestamp": date_time})
+            
+            # Mengurutkan file berdasarkan timestamp, dari yang terbaru ke yang terlama
+            files_data.sort(key=lambda x: x['Timestamp'], reverse=True)
+            
             return files_data
 
         directories = ["facebook-data", "instagram-data", "tweets-data", "plain-text-data"]
-
         for directory in directories:
             with st.expander(f"{directory.replace('-', ' ').title()}"):
                 files = list_files_in_directory(directory)
@@ -1532,7 +1535,7 @@ elif page == "Archieve":
                                         label="Unduh",
                                         data=f,
                                         file_name=file["File"],
-                                        mime="text/csv"
+                                        mime="text/csv",
                                     )
                             with col4:
                                 if st.button("Hapus", key=f"delete_{file['File']}"):
@@ -1540,10 +1543,13 @@ elif page == "Archieve":
                                     st.rerun()
                 else:
                     st.info("Tidak ada file yang tersedia.")
+
         with st.popover("Hapus Semua"):
             st.write("Apakah Anda yakin ingin menghapus semua data yang telah di-crawl?")
-            files = list_files_in_directory(directory)   
-            if files:         
+            all_files = []
+            for directory in directories:
+                all_files.extend(list_files_in_directory(directory))
+            if all_files:        
                 if st.button("Hapus"):
                     for directory in directories:
                         for file in os.listdir(directory):
