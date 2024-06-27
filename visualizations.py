@@ -143,6 +143,6 @@ def visualize_data(df):
     st.subheader("Word Cloud")
     all_texts = df["Processed"]
     all_text = " ".join(all_texts.astype(str).tolist())
-    circle_mask = np.array(Image.open("mask.png"))
+    circle_mask = np.array(Image.open("assets/mask.png"))
     wordcloud = generate_wordcloud(all_text, circle_mask)
     st.image(wordcloud.to_array(), use_column_width=True)

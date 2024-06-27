@@ -5,7 +5,7 @@ import os
 import re
 import subprocess
 
-from visualizations import visualize_data
+from datavisualizations import visualize_data
 from ogpdVisualizations import ogpd_visualize_data
 from recommendations import recommendations
 
@@ -81,7 +81,7 @@ if page == "OGPD":
     # Load Data
     @st.cache_data
     def load_data():
-        return pd.read_csv("labeled_final.csv")
+        return pd.read_csv("data/labeled_final.csv")
 
     df = load_data()
 
@@ -101,12 +101,12 @@ elif page == "Explorer":
         "Pilih Explorer:", ("Plain Text", "Facebook", "Instagram", "X")
     )
 
-    model_path = "improved_svm_model.pkl"
+    model_path = "models/improved_svm_model.pkl"
 
-    slang_df = pd.read_csv("Kata_Baku_Final.csv")
+    slang_df = pd.read_csv("data/Kata_Baku_Final.csv")
     slang_dict = dict(zip(slang_df.iloc[:, 0], slang_df.iloc[:, 1]))
 
-    stopwords_df = pd.read_csv("Stopwords.csv")
+    stopwords_df = pd.read_csv("data/Stopwords.csv")
     stopwords = stopwords_df.iloc[:, 0].tolist()
 
     def cleaning(text):
@@ -310,7 +310,7 @@ elif page == "Explorer":
                 prefs = {"profile.managed_default_content_settings.images": 2}
                 options.add_experimental_option("prefs", prefs)
 
-                driver_service = Service("msedgedriver.exe")
+                driver_service = Service("assets/msedgedriver.exe")
                 driver = webdriver.Edge(service=driver_service, options=options)
                 return driver
 
@@ -496,7 +496,7 @@ elif page == "Explorer":
                 prefs = {"profile.managed_default_content_settings.images": 2}
                 options.add_experimental_option("prefs", prefs)
 
-                driver_service = Service("msedgedriver.exe")
+                driver_service = Service("assets/msedgedriver.exe")
                 driver = webdriver.Edge(service=driver_service, options=options)
                 return driver
 
