@@ -6,6 +6,7 @@ import re
 import subprocess
 
 from visualizations import visualize_data
+from ogpdVisualizations import ogpd_visualize_data
 from recommendations import recommendations
 
 import joblib
@@ -37,7 +38,7 @@ st.set_page_config(
 )
 
 # Navigation
-pages = ["OGPD", "Explorer", "About"]
+pages = ["OGPD", "Explorer", "Archieve"]
 styles = {
     "nav": {
         "background-color": "rgb(116, 185, 255)",
@@ -69,7 +70,7 @@ if page == "OGPD":
         "Selamat datang di Online Gambling Promotion Detector. Sistem ini dirancang untuk membantu Anda dalam mengklasifikasikan konten yang terkait dengan promosi judi daring di platform media sosial."
     )
     st.write(
-        "Sistem ini menggunakan algoritma Support Vector Machine (SVM) untuk memproses dan menganalisis data yang dikumpulkan dari media sosial X. Dengan mengumpulkan dan memproses sekitar puluhan ribu unggahan yang telah diberi label positif untuk unggahan yang mengandung promosi dan negatif untuk unggahan yang tidak mengandung promosi, dibuat suatu model yang kemudian dilatih agar sistem ini mampu mendeteksi apakah suatu unggahan di media sosial mempromosikan judi daring atau tidak."
+        "Sistem ini menggunakan algoritma Support Vector Machine (SVM) untuk memproses dan menganalisis data yang dikumpulkan dari media sosial X. Dengan mengumpulkan dan memproses sekitar puluhan ribu unggahan yang telah diberi label positif untuk unggahan yang mengandung promosi dan negatif untuk unggahan yang tidak mengandung promosi, dibuat suatu model yang kemudian dilatih agar sistem ini mampu mengklasifikasikan apakah suatu unggahan di media sosial mempromosikan judi daring atau tidak."
     )
 
     st.header("Analisis Data")
@@ -91,7 +92,7 @@ if page == "OGPD":
         }
     )
 
-    visualize_data(df)
+    ogpd_visualize_data(df)
 
 
 elif page == "Explorer":
@@ -208,7 +209,7 @@ elif page == "Explorer":
                 st.error("Tidak ada data untuk diklasifikasikan.")
                 st.stop()
 
-            filename = f"plain-text-data/pte_{timestamp}.csv"
+            filename = f"plain-text-data/pte_unggahan_text_{timestamp}.csv"
             df.to_csv(filename, index=False)
 
             # Load data
@@ -991,6 +992,8 @@ elif page == "Explorer":
             recommendations()
             if not hashtags:
                 st.error("Hashtag tidak boleh kosong.")
+            elif " " in hashtags:
+                st.error("Hashtag tidak boleh mengandung spasi.")
             elif resultsLimit is None:
                 st.error("Batas maksimum unggahan tidak boleh kosong.")
             elif resultsLimit < 1:
@@ -1148,7 +1151,7 @@ elif page == "Explorer":
                                 data.append(item)
                             df = pd.DataFrame(data)
 
-                            filename = f"instagram-data/ie_komentar_{timestamp}.csv"
+                            filename = f"instagram-data/ie_unggahan_komentar_{timestamp}.csv"
                             df.to_csv(filename, index=False)
 
                             # Load data
@@ -1236,7 +1239,7 @@ elif page == "Explorer":
             col1, col2 = container.columns(2)
             with col1:
                 search_keyword = st.text_input(
-                    "Masukkan username X:", value="KomisiJudi"
+                    "Masukkan username X:", value="ardisatriawan"
                 )
             with col2:
                 limit = st.number_input(
@@ -1270,7 +1273,7 @@ elif page == "Explorer":
                         f"from:{search_keyword} since:{start_date} until:{end_date}"
                     )
 
-                    filename = f"xe_{search_keyword}_{timestamp}.csv"
+                    filename = f"xe_unggahan_{search_keyword}_{timestamp}.csv"
 
                     with st.spinner("Crawling data..."):
                         process = subprocess.Popen(
@@ -1399,7 +1402,7 @@ elif page == "Explorer":
                         f"{search_keyword} lang:id since:{start_date} until:{end_date}"
                     )
 
-                    filename = f"xe_{search_keyword.replace(' ', '_')}_{timestamp}.csv"
+                    filename = f"xe_unggahan_{search_keyword.replace(' ', '')}_{timestamp}.csv"
 
                     # Crawling data
                     with st.spinner("Crawling data..."):
@@ -1493,16 +1496,60 @@ elif page == "Explorer":
                     visualize_data(df)
 
 
-elif page == "About":
-    st.title("About")
-    st.write(
-        "This application is designed to perform social media data crawling and classification."
-    )
+elif page == "Archieve":
 
-    st.subheader("Our Mission")
-    st.write(
-        "Our mission is to provide a user-friendly interface for social media data analysis. We aim to make data analysis accessible to everyone, regardless of their technical skills. Additionally, we are committed to assisting authorities in combating online gambling promotions."
-    )
+    st.title("Archive")
+    st.write("Unduh data yang telah di-crawl sebelumnya.")
 
-    st.subheader("Contact Us")
-    st.write("For any inquiries, please contact us at: faarismudawork@gmail.com")
+    with st.container(border=True):
+        def list_files_in_directory(directory):
+            files_data = []
+            for file in os.listdir(directory):
+                if file.endswith("predicted.csv"):
+                    parts = file.split('_')
+                    date_time_str = f"{parts[-3]}_{parts[-2]}"
+                    date_time = datetime.strptime(date_time_str, "%Y%m%d_%H%M%S")
+                    formatted_date_time = date_time.strftime("%Y-%m-%d %H:%M:%S")
+                    name = parts[2] if len(parts) > 2 else "Unknown"
+                    file_path = os.path.join(directory, file)
+                    files_data.append({"File": file, "Name": name, "Date Time": formatted_date_time, "Path": file_path})
+            return files_data
+
+        directories = ["facebook-data", "instagram-data", "plain-text-data", "tweets-data"]
+
+        for directory in directories:
+            with st.expander(f"{directory.replace('-', ' ').title()}"):
+                files = list_files_in_directory(directory)
+                if files:
+                    for file in files:
+                        with st.container():
+                            col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
+                            col1.write(file["Name"])
+                            col2.write(file["Date Time"])
+                            with col3:
+                                with open(file["Path"], "rb") as f:
+                                    st.download_button(
+                                        label="Unduh",
+                                        data=f,
+                                        file_name=file["File"],
+                                        mime="text/csv"
+                                    )
+                            with col4:
+                                if st.button("Hapus", key=f"delete_{file['File']}"):
+                                    os.remove(file["Path"])
+                                    st.rerun()
+                else:
+                    st.info("Tidak ada file yang tersedia.")
+                    
+        if st.button("Hapus Semua"):
+            for directory in directories:
+                for file in os.listdir(directory):
+                    if file.endswith("predicted.csv"):
+                        os.remove(os.path.join(directory, file))
+            st.rerun()
+        
+    with st.container(border=True):
+        st.subheader("About")
+        st.write("OGPD atau Online Gambling Promotion Detector merupakan sebuah proyek yang dibangun untuk memberikan wawasan kepada pihak berwenang mengenai konten promosi judi daring yang belakangan ini marak di Indonesia. Selain itu, diciptakan sebuah sistem yang mampu mengumpulkan dan mengklasifikasikan konten yang tersebar di berbagai media sosial seperti Facebook, Instagram, dan X. Konten yang terindikasi mengandung promosi judi daring akan diberi label positif, sedangkan konten yang tidak mengandung promosi judi daring diberi label negatif.")
+        st.write("Kemampuan sistem dalam mengklasifikasikan konten dibantu dengan algoritma Support Vector Machine (SVM) yang memiliki tingkat akurasi di atas 90%. Meskipun tingkat akurasinya cukup tinggi, hasil klasifikasi tidak serta merta dapat digunakan untuk pengambilan keputusan. Penting untuk melakukan pengecekan ulang terkait konten yang diberi label.")
+        st.write("For any inquiries, please contact me at: faarismudawork@gmail.com")
