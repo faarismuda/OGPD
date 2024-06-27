@@ -66,7 +66,8 @@ def ogpd_visualize_data(df):
             ],
         )
     )
-    st.altair_chart(pie_chart, use_container_width=True)
+    with st.spinner("Creating pie chart..."):
+        st.altair_chart(pie_chart, use_container_width=True)
     st.write(
         "Visualisasi pie chart menunjukkan bahwa sebagian besar unggahan, yaitu sekitar 72,1% tidak terkait dengan promosi judi daring, sementara 27,9% sisanya memang mempromosikan judi daring. Ini menunjukkan bahwa meskipun mayoritas konten tidak mempromosikan judi, proporsi yang mempromosikan cukup signifikan dan memerlukan perhatian khusus."
     )
@@ -96,8 +97,9 @@ def ogpd_visualize_data(df):
         .encode(x=alt.X("Kata", sort=None), y="Frekuensi")
         .properties(title="Kata-Kata Teratas yang Dilabeli Negatif")
     )
-    st.altair_chart(positive_chart, use_container_width=True)
-    st.altair_chart(negative_chart, use_container_width=True)
+    with st.spinner("Creating bar chart..."):
+        st.altair_chart(positive_chart, use_container_width=True)
+        st.altair_chart(negative_chart, use_container_width=True)
 
     # Bigram Analysis
     st.subheader("Frekuensi Bigram")
@@ -122,8 +124,9 @@ def ogpd_visualize_data(df):
         .encode(x=alt.X("Bigram", sort=None), y="Frekuensi")
         .properties(title="Bigram-Bigram Teratas yang Dilabeli Negatif")
     )
-    st.altair_chart(positive_bigram_chart, use_container_width=True)
-    st.altair_chart(negative_bigram_chart, use_container_width=True)
+    with st.spinner("Creating bar chart..."):
+        st.altair_chart(positive_bigram_chart, use_container_width=True)
+        st.altair_chart(negative_bigram_chart, use_container_width=True)
 
     # Histogram
     st.subheader("Distribusi Panjang Karakter")
@@ -140,7 +143,8 @@ def ogpd_visualize_data(df):
         .encode(x="Panjang Karakter:Q", y="Frekuensi:Q", color="Label:N")
         .properties(width=600, height=400, title="Histogram")
     )
-    st.altair_chart(hist_chart, use_container_width=True)
+    with st.spinner("Creating histogram..."):
+        st.altair_chart(hist_chart, use_container_width=True)
     st.write(
         "Histogram memperlihatkan distribusi panjang unggahan dalam karakter terhadap frekuensi kemunculannya. Unggahan positif, ditandai biru muda, lebih sering muncul pada rentang 0-50 karakter dibandingkan unggahan negatif, yang ditandai biru tua. Frekuensi kedua kategori menurun seiring bertambahnya panjang unggahan, namun penurunan pada unggahan negatif lebih lambat. Ini menunjukkan bahwa unggahan promosi cenderung singkat dan langsung, sedangkan unggahan penolakan lebih panjang dan deskriptif."
     )
@@ -151,7 +155,8 @@ def ogpd_visualize_data(df):
     all_text = " ".join(all_texts.astype(str).tolist())
     circle_mask = np.array(Image.open("assets/mask.png"))
     wordcloud = generate_wordcloud(all_text, circle_mask)
-    st.image(wordcloud.to_array(), use_column_width=True)
+    with st.spinner("Creating word cloud..."):
+        st.image(wordcloud.to_array(), use_column_width=True)
     st.write(
             "Analisis word cloud menunjukkan dominasi kata “judi online”, yang menegaskan fokus dataset pada judi daring. Kata-kata seperti “main”, “situs”, “toto gelap”, “bola”, “poker”, dan “slot” sering muncul, menandakan diskusi seputar berbagai jenis permainan judi online dan situs yang menyediakannya. Kata “uang” dan “menang” berkaitan dengan iming-iming yang didapat ketika bermain judi, sementara “bandar” dan “agen” terkait dengan penyelenggara atau bisa juga memberitahukan secara langsung penyelenggara judi mana yang dipromosikan. Kata-kata seperti “kalah”, “tangkap”, “haram”, “blokir”, dan “larang” mengindikasikan risiko dan konsekuensi negatif dari judi daring."
         )

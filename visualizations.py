@@ -66,7 +66,8 @@ def visualize_data(df):
             ],
         )
     )
-    st.altair_chart(pie_chart, use_container_width=True)
+    with st.spinner("Creating pie chart..."):
+        st.altair_chart(pie_chart, use_container_width=True)
 
     # Frekuensi of Words
     st.subheader("Frekuensi Kata")
@@ -93,8 +94,9 @@ def visualize_data(df):
         .encode(x=alt.X("Kata", sort=None), y="Frekuensi")
         .properties(title="Kata-Kata Teratas yang Dilabeli Negatif")
     )
-    st.altair_chart(positive_chart, use_container_width=True)
-    st.altair_chart(negative_chart, use_container_width=True)
+    with st.spinner("Creating bar chart..."):
+        st.altair_chart(positive_chart, use_container_width=True)
+        st.altair_chart(negative_chart, use_container_width=True)
 
     # Bigram Analysis
     st.subheader("Frekuensi Bigram")
@@ -119,8 +121,9 @@ def visualize_data(df):
         .encode(x=alt.X("Bigram", sort=None), y="Frekuensi")
         .properties(title="Bigram-Bigram Teratas yang Dilabeli Negatif")
     )
-    st.altair_chart(positive_bigram_chart, use_container_width=True)
-    st.altair_chart(negative_bigram_chart, use_container_width=True)
+    with st.spinner("Creating bar chart..."):
+        st.altair_chart(positive_bigram_chart, use_container_width=True)
+        st.altair_chart(negative_bigram_chart, use_container_width=True)
 
     # Histogram
     st.subheader("Distribusi Panjang Karakter")
@@ -137,7 +140,8 @@ def visualize_data(df):
         .encode(x="Panjang Karakter:Q", y="Frekuensi:Q", color="Label:N")
         .properties(width=600, height=400, title="Histogram")
     )
-    st.altair_chart(hist_chart, use_container_width=True)
+    with st.spinner("Creating histogram..."):
+        st.altair_chart(hist_chart, use_container_width=True)
 
     # Wordcloud
     st.subheader("Word Cloud")
@@ -145,4 +149,5 @@ def visualize_data(df):
     all_text = " ".join(all_texts.astype(str).tolist())
     circle_mask = np.array(Image.open("assets/mask.png"))
     wordcloud = generate_wordcloud(all_text, circle_mask)
-    st.image(wordcloud.to_array(), use_column_width=True)
+    with st.spinner("Creating word cloud..."):
+        st.image(wordcloud.to_array(), use_column_width=True)
