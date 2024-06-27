@@ -5,7 +5,7 @@ import os
 import re
 import subprocess
 
-from datavisualizations import visualize_data
+from visualizations import visualize_data
 from ogpdVisualizations import ogpd_visualize_data
 from recommendations import recommendations
 
