@@ -38,7 +38,7 @@ st.set_page_config(
 )
 
 # Navigation
-pages = ["OGPD", "Explorer", "Archieve"]
+pages = ["OGPD", "Explorer", "Archive"]
 styles = {
     "nav": {
         "background-color": "rgb(116, 185, 255)",
@@ -1496,7 +1496,7 @@ elif page == "Explorer":
                     visualize_data(df)
 
 
-elif page == "Archieve":
+elif page == "Archive":
 
     st.title("Archive")
     st.write("Unduh data yang telah di-crawl sebelumnya.")
@@ -1557,7 +1557,7 @@ elif page == "Archieve":
                                 os.remove(os.path.join(directory, file))
                     st.rerun()
             else:
-                st.button("Tidak Ada File", disabled=True)
+                st.button("Tidak ada file", disabled=True)
         
     with st.container(border=True):
         st.subheader("About")
