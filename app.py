@@ -1515,7 +1515,7 @@ elif page == "Archieve":
                     files_data.append({"File": file, "Name": name, "Date Time": formatted_date_time, "Path": file_path})
             return files_data
 
-        directories = ["facebook-data", "instagram-data", "plain-text-data", "tweets-data"]
+        directories = ["facebook-data", "instagram-data", "tweets-data", "plain-text-data"]
 
         for directory in directories:
             with st.expander(f"{directory.replace('-', ' ').title()}"):
@@ -1540,13 +1540,18 @@ elif page == "Archieve":
                                     st.rerun()
                 else:
                     st.info("Tidak ada file yang tersedia.")
-                    
-        if st.button("Hapus Semua"):
-            for directory in directories:
-                for file in os.listdir(directory):
-                    if file.endswith("predicted.csv"):
-                        os.remove(os.path.join(directory, file))
-            st.rerun()
+        with st.popover("Hapus Semua"):
+            st.write("Apakah Anda yakin ingin menghapus semua data yang telah di-crawl?")
+            files = list_files_in_directory(directory)   
+            if files:         
+                if st.button("Hapus"):
+                    for directory in directories:
+                        for file in os.listdir(directory):
+                            if file.endswith(".csv"):
+                                os.remove(os.path.join(directory, file))
+                    st.rerun()
+            else:
+                st.button("Tidak Ada File", disabled=True)
         
     with st.container(border=True):
         st.subheader("About")
