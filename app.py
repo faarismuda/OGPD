@@ -1519,14 +1519,14 @@ elif page == "Archive":
             
             return files_data
 
-        directories = ["facebook-data", "instagram-data", "tweets-data", "plain-text-data"]
+        directories = ["plain-text-data", "facebook-data", "instagram-data", "tweets-data"]
         for directory in directories:
             with st.expander(f"{directory.replace('-', ' ').title()}"):
                 files = list_files_in_directory(directory)
                 if files:
                     for file in files:
-                        with st.container():
-                            col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
+                        with st.container(border=True):
+                            col1, col2, col3, col4 = st.columns([3, 2, 1, 1], vertical_alignment="center")
                             col1.write(file["Name"])
                             col2.write(file["Date Time"])
                             with col3:
