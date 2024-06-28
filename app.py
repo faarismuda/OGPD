@@ -51,6 +51,7 @@ styles = {
         "color": "rgb(255, 255, 255)",
         "margin": "0 0.125rem",
         "padding": "0.4375rem 0.625rem",
+        "font-family": "Product Sans, sans-serif",
     },
     "active": {
         "background-color": "rgba(45, 52, 54, 0.25)",
@@ -62,6 +63,8 @@ styles = {
 
 page = st_navbar(pages, styles=styles)
 
+with open( "style.css" ) as css:
+    st.markdown( f'<style>{css.read()}</style>' , unsafe_allow_html= True)
 
 # Display content based on selected page
 if page == "OGPD":
