@@ -285,7 +285,7 @@ elif page == "Explorer":
         from bs4 import BeautifulSoup
 
         choice = container.selectbox(
-            "Pilih opsi:",
+            "Pilih jenis crawling:",
             options=[
                 "Unggahan Pribadi atau Halaman",
                 "Unggahan Grup",
@@ -819,7 +819,7 @@ elif page == "Explorer":
         #         )
         #     with col2:
         #         viewOption = st.selectbox(
-        #             "Pilih opsi tampilan:",
+        #             "Pilih jenis crawling tampilan:",
         #             options=["RANKED_UNFILTERED", "RANKED_THREADED", "RECENT_ACTIVITY"],
         #         )
 
@@ -1233,7 +1233,7 @@ elif page == "Explorer":
         x_auth_token = os.getenv("X_AUTH_TOKEN")
 
         x_option = container.selectbox(
-            "Pilih opsi:",
+            "Pilih jenis crawling:",
             ("Unggahan Pribadi", "Pencari Unggahan"),
         )
 
