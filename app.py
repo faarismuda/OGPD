@@ -313,7 +313,7 @@ elif page == "Explorer":
                 prefs = {"profile.managed_default_content_settings.images": 2}
                 options.add_experimental_option("prefs", prefs)
 
-                driver_service = Service("/content/msedgedriver")
+                driver_service = Service("assets/msedgedriver.exe")
                 driver = webdriver.Edge(service=driver_service, options=options)
                 return driver
 
