@@ -1238,6 +1238,10 @@ elif page == "Explorer":
             "Pilih jenis crawling:",
             ("Unggahan Pribadi", "Pencari Unggahan"),
         )
+        
+        directory = "tweets-data"
+        if not os.path.exists(directory):
+            os.makedirs(directory)
 
         if x_option == "Unggahan Pribadi":
             # Tambahkan kode untuk menangani unggahan pribadi di sini
