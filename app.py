@@ -1564,7 +1564,21 @@ elif page == "Archive":
                                     )
                             with col4:
                                 if st.button("Hapus", key=f"delete_{file['File']}"):
+                                    # Hapus file yang diprediksi
                                     os.remove(file["Path"])
+
+                                    # Bangun kembali nama file asli
+                                    original_file_name = file["File"].replace(
+                                        "_predicted", ""
+                                    )
+                                    original_file_path = os.path.join(
+                                        directory, original_file_name
+                                    )
+
+                                    # Periksa dan hapus file asli jika ada
+                                    if os.path.exists(original_file_path):
+                                        os.remove(original_file_path)
+
                                     st.rerun()
                 else:
                     st.info("Tidak ada file yang tersedia.")
