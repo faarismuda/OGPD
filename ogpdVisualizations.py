@@ -1,9 +1,6 @@
 import altair as alt
-import numpy as np
 import pandas as pd
-from PIL import Image
 from sklearn.feature_extraction.text import CountVectorizer
-from wordcloud import WordCloud
 
 import streamlit as st
 
@@ -12,27 +9,6 @@ import nltk
 # Setup
 nltk.download("stopwords")
 stop_words = list(nltk.corpus.stopwords.words("indonesian"))
-
-
-@st.cache_data
-def generate_wordcloud(all_text, circle_mask):
-    return WordCloud(
-        width=800,
-        height=800,
-        background_color="white",
-        mask=circle_mask,
-        contour_width=1,
-        contour_color="steelblue",
-        min_font_size=10,
-        colormap="viridis",
-        prefer_horizontal=1.0,
-        scale=3,
-        max_words=50000000,
-        relative_scaling=0.5,
-        normalize_plurals=False,
-        stopwords=stop_words,
-    ).generate(all_text)
-
 
 def get_top_ngrams(corpus, ngram_range=(1, 1), stop_words=None, n=None):
     if corpus.empty:
@@ -43,7 +19,6 @@ def get_top_ngrams(corpus, ngram_range=(1, 1), stop_words=None, n=None):
     words_freq = [(word, sum_words[0, idx]) for word, idx in vec.vocabulary_.items()]
     words_freq = sorted(words_freq, key=lambda x: x[1], reverse=True)
     return words_freq[:n]
-
 
 def ogpd_visualize_data(df):
     # Pie Chart untuk Distribusi Label
@@ -151,12 +126,7 @@ def ogpd_visualize_data(df):
 
     # Wordcloud
     st.subheader("Word Cloud")
-    all_texts = df["Processed"]
-    all_text = " ".join(all_texts.astype(str).tolist())
-    circle_mask = np.array(Image.open("assets/mask.png"))
-    wordcloud = generate_wordcloud(all_text, circle_mask)
-    with st.spinner("Creating word cloud..."):
-        st.image(wordcloud.to_array(), use_column_width=True)
+    st.image("assets/ogpd-wordcloud.jpg", use_column_width=True)
     st.write(
-            "Analisis word cloud menunjukkan dominasi kata “judi online”, yang menegaskan fokus dataset pada judi daring. Kata-kata seperti “main”, “situs”, “toto gelap”, “bola”, “poker”, dan “slot” sering muncul, menandakan diskusi seputar berbagai jenis permainan judi online dan situs yang menyediakannya. Kata “uang” dan “menang” berkaitan dengan iming-iming yang didapat ketika bermain judi, sementara “bandar” dan “agen” terkait dengan penyelenggara atau bisa juga memberitahukan secara langsung penyelenggara judi mana yang dipromosikan. Kata-kata seperti “kalah”, “tangkap”, “haram”, “blokir”, dan “larang” mengindikasikan risiko dan konsekuensi negatif dari judi daring."
-        )
+        "Analisis word cloud menunjukkan dominasi kata “judi online”, yang menegaskan fokus dataset pada judi daring. Kata-kata seperti “main”, “situs”, “toto gelap”, “bola”, “poker”, dan “slot” sering muncul, menandakan diskusi seputar berbagai jenis permainan judi online dan situs yang menyediakannya. Kata “uang” dan “menang” berkaitan dengan iming-iming yang didapat ketika bermain judi, sementara “bandar” dan “agen” terkait dengan penyelenggara atau bisa juga memberitahukan secara langsung penyelenggara judi mana yang dipromosikan. Kata-kata seperti “kalah”, “tangkap”, “haram”, “blokir”, dan “larang” mengindikasikan risiko dan konsekuensi negatif dari judi daring."
+    )
