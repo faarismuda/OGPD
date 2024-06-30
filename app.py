@@ -1238,10 +1238,6 @@ elif page == "Explorer":
             "Pilih jenis crawling:",
             ("Unggahan Pribadi", "Pencari Unggahan"),
         )
-        
-        directory = "tweets-data"
-        if not os.path.exists(directory):
-            os.makedirs(directory)
 
         if x_option == "Unggahan Pribadi":
             # Tambahkan kode untuk menangani unggahan pribadi di sini
@@ -1547,6 +1543,8 @@ elif page == "Archive":
             "tweets-data",
         ]
         for directory in directories:
+            if not os.path.exists(directory):
+                os.makedirs(directory)
             with st.expander(f"{directory.replace('-', ' ').title()}"):
                 files = list_files_in_directory(directory)
                 if files:
