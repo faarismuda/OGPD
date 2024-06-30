@@ -10,7 +10,6 @@ from ogpdVisualizations import ogpd_visualize_data
 from recommendations import recommendations
 
 import joblib
-import numpy as np
 import pandas as pd
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 from apify_client import ApifyClient
@@ -195,7 +194,7 @@ elif page == "Explorer":
                 df_uploaded.rename(columns={first_column_name: "Text"}, inplace=True)
 
                 # Mengatur ulang index dimulai dari 1
-                df_uploaded.index = np.arange(1, len(df_uploaded) + 1)
+                df_uploaded.index = range(1, len(df_uploaded) + 1)
                 container.caption("Data dari file yang diunggah:")
                 container.dataframe(df_uploaded["Text"], use_container_width=True)
             else:
@@ -255,7 +254,7 @@ elif page == "Explorer":
             df["Label"] = predictions
 
             # Mengatur ulang index dimulai dari 1
-            df.index = np.arange(1, len(df) + 1)
+            df.index = range(1, len(df) + 1)
 
             output_filename = f"{filename.replace('.csv', '')}_predicted"
             df[["Text", "Label"]].to_csv(f"{output_filename}.csv", index=False)
@@ -475,7 +474,7 @@ elif page == "Explorer":
                     )
 
                     # Mengatur ulang index dimulai dari 1
-                    df.index = np.arange(1, len(df) + 1)
+                    df.index = range(1, len(df) + 1)
 
                     output_filename = f"{filename.replace('.csv', '')}_predicted"
                     df[["Text", "Label"]].to_csv(f"{output_filename}.csv", index=False)
@@ -754,7 +753,7 @@ elif page == "Explorer":
                             )
 
                             # Mengatur ulang index dimulai dari 1
-                            df.index = np.arange(1, len(df) + 1)
+                            df.index = range(1, len(df) + 1)
 
                             output_filename = (
                                 f"{filename.replace('.csv', '')}_predicted"
@@ -965,7 +964,7 @@ elif page == "Explorer":
                     )
 
                     # Mengatur ulang index dimulai dari 1
-                    df.index = np.arange(1, len(df) + 1)
+                    df.index = range(1, len(df) + 1)
 
                     output_filename = f"{filename.replace('.csv', '')}_predicted"
                     df[["Text", "URL", "Label"]].to_csv(
@@ -1076,7 +1075,7 @@ elif page == "Explorer":
                     )
 
                     # Mengatur ulang index dimulai dari 1
-                    df.index = np.arange(1, len(df) + 1)
+                    df.index = range(1, len(df) + 1)
 
                     output_filename = f"{filename.replace('.csv', '')}_predicted"
                     df[["Text", "URL", "Username", "Label"]].to_csv(
@@ -1207,7 +1206,7 @@ elif page == "Explorer":
                             )
 
                             # Mengatur ulang index dimulai dari 1
-                            df.index = np.arange(1, len(df) + 1)
+                            df.index = range(1, len(df) + 1)
 
                             output_filename = (
                                 f"{filename.replace('.csv', '')}_predicted"
@@ -1354,7 +1353,7 @@ elif page == "Explorer":
                     )
 
                     # Mengatur ulang index dimulai dari 1
-                    df.index = np.arange(1, len(df) + 1)
+                    df.index = range(1, len(df) + 1)
 
                     output_filename = f"{filename.replace('.csv', '')}_predicted"
                     df[["Text", "URL", "Username", "Label"]].to_csv(
@@ -1489,7 +1488,7 @@ elif page == "Explorer":
                     )
 
                     # Mengatur ulang index dimulai dari 1
-                    df.index = np.arange(1, len(df) + 1)
+                    df.index = range(1, len(df) + 1)
 
                     output_filename = f"{filename.replace('.csv', '')}_predicted"
                     df[["Text", "URL", "Username", "Label"]].to_csv(
