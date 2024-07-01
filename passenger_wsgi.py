@@ -6,7 +6,7 @@ from subprocess import Popen
 sys.path.insert(0, os.path.dirname(__file__))
 
 # Jalankan Streamlit
-cmd = ["streamlit", "run", "app.py", "--server.port=8080"]
+cmd = ["streamlit", "run", "app.py", "--server.port=8501"]
 process = Popen(cmd)
 
 def application(environ, start_response):
