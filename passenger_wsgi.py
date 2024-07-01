@@ -1,12 +1,17 @@
-import subprocess
+import os
+import sys
+from subprocess import Popen
+
+# Tambahkan path aplikasi ke sys.path
+sys.path.insert(0, os.path.dirname(__file__))
+
+# Jalankan Streamlit
+cmd = ["streamlit", "run", "app.py", "--server.port=8080"]
+process = Popen(cmd)
 
 def application(environ, start_response):
-    if 'STREAMLIT_SERVER' not in environ:
-        subprocess.Popen(['streamlit', 'run', 'app.py', '--server.port=8080'])
-        environ['STREAMLIT_SERVER'] = True
-
     status = '200 OK'
-    output = b'Streamlit app is running...'
+    output = b"Streamlit app is running..."
 
     response_headers = [('Content-type', 'text/plain'),
                         ('Content-Length', str(len(output)))]
