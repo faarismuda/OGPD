@@ -305,15 +305,30 @@ elif page == "Explorer":
                 options.use_chromium = True
                 options.add_argument("--headless")  # Run in headless mode
                 options.add_argument("--disable-gpu")  # Disable GPU acceleration
-                options.add_argument(
-                    "--window-size=1920x1080"
-                )  # Set window size for headless mode
+                options.add_argument("--window-size=1920x1080")  # Set window size for headless mode
+                options.add_argument("--no-sandbox")  # Bypass OS security model, required for Docker
+                options.add_argument("--disable-dev-shm-usage")  # Overcome limited resource problems
+                options.add_argument("--disable-software-rasterizer")  # Disable software rasterizer
 
                 # Disable images loading
                 prefs = {"profile.managed_default_content_settings.images": 2}
                 options.add_experimental_option("prefs", prefs)
 
-                driver_service = Service("assets/msedgedriver.exe")
+                driver_service = None
+                try:
+                    # Coba path pertama
+                    driver_service = Service("assets/msedgedriver")
+                    driver_service.start()
+                except Exception as e1:
+                    print(f"Failed to start service with assets/msedgedriver: {e1}")
+                    try:
+                        # Coba path kedua
+                        driver_service = Service("/usr/local/bin/msedgedriver")
+                        driver_service.start()
+                    except Exception as e2:
+                        print(f"Failed to start service with /usr/local/bin/msedgedriver: {e2}")
+                        raise e2  # Gagal kedua-duanya, lempar exception
+
                 driver = webdriver.Edge(service=driver_service, options=options)
                 return driver
 
@@ -491,15 +506,30 @@ elif page == "Explorer":
                 options.use_chromium = True
                 options.add_argument("--headless")  # Run in headless mode
                 options.add_argument("--disable-gpu")  # Disable GPU acceleration
-                options.add_argument(
-                    "--window-size=1920x1080"
-                )  # Set window size for headless mode
+                options.add_argument("--window-size=1920x1080")  # Set window size for headless mode
+                options.add_argument("--no-sandbox")  # Bypass OS security model, required for Docker
+                options.add_argument("--disable-dev-shm-usage")  # Overcome limited resource problems
+                options.add_argument("--disable-software-rasterizer")  # Disable software rasterizer
 
                 # Disable images loading
                 prefs = {"profile.managed_default_content_settings.images": 2}
                 options.add_experimental_option("prefs", prefs)
 
-                driver_service = Service("assets/msedgedriver.exe")
+                driver_service = None
+                try:
+                    # Coba path pertama
+                    driver_service = Service("assets/msedgedriver")
+                    driver_service.start()
+                except Exception as e1:
+                    print(f"Failed to start service with assets/msedgedriver: {e1}")
+                    try:
+                        # Coba path kedua
+                        driver_service = Service("/usr/local/bin/msedgedriver")
+                        driver_service.start()
+                    except Exception as e2:
+                        print(f"Failed to start service with /usr/local/bin/msedgedriver: {e2}")
+                        raise e2  # Gagal kedua-duanya, lempar exception
+
                 driver = webdriver.Edge(service=driver_service, options=options)
                 return driver
 
@@ -1238,6 +1268,10 @@ elif page == "Explorer":
             "Pilih jenis crawling:",
             ("Unggahan Pribadi", "Pencari Unggahan"),
         )
+        
+        directory = "tweets-data"
+        if not os.path.exists(directory):
+            os.makedirs(directory)
 
         if x_option == "Unggahan Pribadi":
             # Tambahkan kode untuk menangani unggahan pribadi di sini
