@@ -24,10 +24,9 @@ RUN npm install -g @playwright/test
 RUN npx playwright install-deps
 
 # Unduh dan instal Microsoft Edge
-RUN apt-get update && apt-get install -yqq wget unzip \
-    && wget -O /tmp/microsoft-edge.deb "https://msedgedriver.azureedge.net/126.0.2592.81/edgedriver_linux64.zip" \
-    && apt-get install -y /tmp/microsoft-edge.deb \
-    && rm /tmp/microsoft-edge.deb
+RUN wget -O /tmp/microsoft-edge-stable_126.0.2592.81-1_amd64.deb https://packages.microsoft.com/repos/edge/pool/main/m/microsoft-edge-stable/microsoft-edge-stable_126.0.2592.81-1_amd64.deb \
+    && apt-get update && apt-get install -y /tmp/microsoft-edge-stable_126.0.2592.81-1_amd64.deb \
+    && rm /tmp/microsoft-edge-stable_126.0.2592.81-1_amd64.deb
 
 # Pastikan msedgedriver memiliki izin eksekusi dan pindahkan ke /usr/local/bin
 RUN chmod +x /app/assets/msedgedriver && mv /app/assets/msedgedriver /usr/local/bin/msedgedriver
