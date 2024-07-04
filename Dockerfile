@@ -1,5 +1,5 @@
 # Gunakan base image yang telah terinstall Python
-FROM python:3.11
+FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
