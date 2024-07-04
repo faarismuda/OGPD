@@ -4,8 +4,8 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Instal curl untuk mengunduh Node.js
-RUN apt-get update && apt-get install -y curl gnupg
+# Instal curl, wget dan gnupg untuk mengunduh Node.js dan Microsoft Edge
+RUN apt-get update && apt-get install -y curl gnupg wget
 
 # Instal Node.js 16.20.2
 RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
