@@ -78,7 +78,7 @@ if page == "OGPD":
 
     st.header("Analisis Data")
     st.write(
-        "Dari analisis terhadap sekitar 38.000 unggahan dengan kata kunci “judi” yang telah dikumpulkan dalam rentang awal tahun 2019 hingga akhir tahun 2023, berikut adalah beberapa temuan yang dapat dilihat melalui visualisasi data:"
+        "Dari analisis terhadap sekitar 42.000 unggahan dengan kata kunci “judi” yang telah dikumpulkan dalam rentang awal tahun 2019 hingga pertengahan tahun 2024, berikut adalah beberapa temuan yang dapat dilihat melalui visualisasi data:"
     )
 
     # Load Data

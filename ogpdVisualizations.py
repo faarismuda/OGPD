@@ -44,7 +44,7 @@ def ogpd_visualize_data(df):
     with st.spinner("Creating pie chart..."):
         st.altair_chart(pie_chart, use_container_width=True)
     st.write(
-        "Visualisasi pie chart menunjukkan bahwa sebagian besar unggahan, yaitu sekitar 72,1% tidak terkait dengan promosi judi daring, sementara 27,9% sisanya memang mempromosikan judi daring. Ini menunjukkan bahwa meskipun mayoritas konten tidak mempromosikan judi, proporsi yang mempromosikan cukup signifikan dan memerlukan perhatian khusus."
+        "Visualisasi pie chart menunjukkan bahwa sebagian besar unggahan, yaitu sekitar 79,7% tidak terkait dengan promosi judi daring, sementara 20,3% sisanya memang mempromosikan judi daring. Ini menunjukkan bahwa meskipun mayoritas konten tidak mempromosikan judi, proporsi yang mempromosikan cukup signifikan dan memerlukan perhatian khusus."
     )
 
     # Frekuensi of Words
@@ -121,12 +121,12 @@ def ogpd_visualize_data(df):
     with st.spinner("Creating histogram..."):
         st.altair_chart(hist_chart, use_container_width=True)
     st.write(
-        "Histogram memperlihatkan distribusi panjang unggahan dalam karakter terhadap frekuensi kemunculannya. Unggahan positif, ditandai biru muda, lebih sering muncul pada rentang 0-50 karakter dibandingkan unggahan negatif, yang ditandai biru tua. Frekuensi kedua kategori menurun seiring bertambahnya panjang unggahan, namun penurunan pada unggahan negatif lebih lambat. Ini menunjukkan bahwa unggahan promosi cenderung singkat dan langsung, sedangkan unggahan penolakan lebih panjang dan deskriptif."
+        "Histogram memperlihatkan distribusi panjang unggahan dalam karakter terhadap frekuensi kemunculannya. Dari data yang terlihat, pada rentang panjang unggahan yang lebih pendek, yaitu sekitar 0 hingga 50 karakter, unggahan negatif tampak memiliki frekuensi lebih tinggi dibandingkan dengan unggahan positif. Namun, ketika panjang unggahan bertambah, terjadi penurunan frekuensi untuk kedua kategori tersebut. Menariknya, penurunan ini terjadi lebih lambat pada unggahan negatif. Ini menunjukkan bahwa unggahan promosi cenderung singkat dan langsung, sedangkan unggahan penolakan lebih panjang dan deskriptif."
     )
 
     # Wordcloud
     st.subheader("Word Cloud")
-    st.image("assets/ogpd-wordcloud.jpg", use_column_width=True)
+    st.image("assets/ogpd-wordcloud.png", use_column_width=True)
     st.write(
         "Analisis word cloud menunjukkan dominasi kata “judi online”, yang menegaskan fokus dataset pada judi daring. Kata-kata seperti “main”, “situs”, “toto gelap”, “bola”, “poker”, dan “slot” sering muncul, menandakan diskusi seputar berbagai jenis permainan judi online dan situs yang menyediakannya. Kata “uang” dan “menang” berkaitan dengan iming-iming yang didapat ketika bermain judi, sementara “bandar” dan “agen” terkait dengan penyelenggara atau bisa juga memberitahukan secara langsung penyelenggara judi mana yang dipromosikan. Kata-kata seperti “kalah”, “tangkap”, “haram”, “blokir”, dan “larang” mengindikasikan risiko dan konsekuensi negatif dari judi daring."
     )
