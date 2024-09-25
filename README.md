@@ -1,3 +1,4 @@
+## OGPD (Online Gambling Promotion Detector)
 In the current digital era, social media has become the primary platform for disseminating various types of information, including harmful online gambling information. The spread of online gambling information via social media has become a serious issue that requires effective handling because it can negatively impact the community's morals and mental health.
 
 In response to this challenge, this study implements a Support Vector Machine (SVM) algorithm to classify content related to online gambling on social media platforms. The objective is to develop an accurate classification system and present the results in an easily interpretable form to support decision-making by authorities. The urgency of this research lies in the need for an effective tool to detect and prevent the increasingly troubling spread of online gambling information.
